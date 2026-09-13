@@ -117,7 +117,7 @@ they are measurements for the stated runtime, not general estimates.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
-__LOCAL_ROW__
+| 2026-09-14 | notebook blob `7f7c851fdc14` (commit `a757ef7`, generated at `da06cfb`; `NOTEBOOK_SOURCE.repository_revision` = `da06cfb…`) | Local Windows-venv harness (`run_nb_local.py`: nbclient 0.11.0, fresh `python3` kernel, `CUDA_VISIBLE_DEVICES=-1`, `DIMER_NOTEBOOK_CI_PREINSTALLED=1`), Python 3.12.10, torch 2.14.0+cu130, transformers 4.57.6; no `pytesseract` in the venv | Default synthetic path, all 8 code cells: pinned install skipped (pre-installed), `stage_missing_files` fetched all 8 manifest entries (514 MB) from the Hub cache at the pinned revision into the scratch `weights/`, `verify_snapshot` PASS (8 files), renderer supplied 73 words + boxes (no OCR call), five `answer` calls → `NW-2026-0417`, `Blue Yonder Airlines`, `$1,099.20`, `11 April 2026`, `40` at scores 0.999–1.000, `n_windows` 1, `evaluation_report` `sample-sanity` (`anls` 1.0, `exact_match` 1.0), 5 outputs written | 57.0 s | PASS — pre-flight only; not promotion evidence |
 
 ### Manual clean-runtime evidence
 
