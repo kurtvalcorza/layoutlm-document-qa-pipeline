@@ -1,0 +1,50 @@
+{
+  "format": "dimer_hf_snapshot",
+  "formatVersion": 1,
+  "modelKey": "layoutlm-document-qa",
+  "modelId": "impira/layoutlm-document-qa",
+  "revision": "beed3c4d02d86017ebca5bd0fdf210046b907aa6",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2326,
+      "sha256": "40fd65fc734cc7eb73cc815465b8073bc4e5b7484406e537c7b8d763f88493f7"
+    },
+    {
+      "path": "config.json",
+      "bytes": 789,
+      "sha256": "6d0fc068193109d0d053fa4de00963778beffbde05067c3e9f3454235044380f"
+    },
+    {
+      "path": "merges.txt",
+      "bytes": 456356,
+      "sha256": "fe36cab26d4f4421ed725e10a2e9ddb7f799449c603a96e7f29b5a3c82a95862"
+    },
+    {
+      "path": "model.safetensors",
+      "bytes": 511200628,
+      "sha256": "e4bbad3e4a1b5ae50c787b7afd6049a0bfa99fd823b50436e444e092ae2347b9"
+    },
+    {
+      "path": "special_tokens_map.json",
+      "bytes": 239,
+      "sha256": "378eb3bf733eb16e65792d7e3fda5b8a4631387ca04d2015199c4d4f22ae554d"
+    },
+    {
+      "path": "tokenizer.json",
+      "bytes": 1355881,
+      "sha256": "33465117406b9007673e8ba283f7f1383d9b5094df947481af60eec94ed7d7bd"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "bytes": 315,
+      "sha256": "ea11996be5d083d63c72700810b18a6cfdf78c55131b754a75ae94e66b0ad6ab"
+    },
+    {
+      "path": "vocab.json",
+      "bytes": 798293,
+      "sha256": "ed19656ea1707df69134c4af35c8ceda2cc9860bf2c3495026153a133670ab5e"
+    }
+  ],
+  "totalBytes": 513814827
+}
