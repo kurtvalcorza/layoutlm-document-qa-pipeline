@@ -1,0 +1,11 @@
+# Weight provenance and DIMER hosting
+
+- Upstream: `impira/layoutlm-document-qa`
+- Immutable revision: `beed3c4d02d86017ebca5bd0fdf210046b907aa6` (the Hub's `main` resolved to this commit on 2026-09-14)
+- Weight format: SafeTensors (`model.safetensors`, 511,200,628 bytes, float32). The upstream repository also hosts `pytorch_model.bin` (pickle; DIMER does not accept `.bin`) and `tf_model.h5` (a TensorFlow export); this pipeline lists and loads neither.
+- Manifest: `weights/layoutlm-document-qa/dimer-base-manifest.json` (8 files: `README.md`, `config.json`, `merges.txt`, `model.safetensors`, `special_tokens_map.json`, `tokenizer.json`, `tokenizer_config.json`, `vocab.json`; 513,814,827 bytes total, per-file SHA-256). The upstream `pyproject.toml`, `setup.cfg` and `.gitattributes` are packaging leftovers and are not listed.
+- Upstream weight license: MIT (the checkpoint's `README.md` front matter and the Hub's licence tag)
+- DIMER hosting: MIT permits use, modification, distribution, and commercial use subject to preservation of the copyright notice and licence text. The Git repository does not vendor the checkpoint (`weights/**/*.safetensors` is git-ignored); DIMER may mirror the pinned snapshot in its model store under the upstream license.
+- Fresh clone: `stage_missing_files(allow_download=True)` fetches only the manifest-listed files absent on disk, at the pinned revision, into the snapshot directory; `verify_snapshot()` then checks every file before any load. `weights/**` is marked `-text` in `.gitattributes` so Windows `core.autocrlf` cannot rewrite the committed small files and break their digests.
+- Loader trust boundary: Transformers `LayoutLMForQuestionAnswering` / `AutoTokenizer` (the snapshot's RoBERTa byte-level BPE, fast) with `trust_remote_code=False`, `local_files_only=True` from the verified directory; nothing is fetched at construction or inference (the smoke run loaded and answered with `HF_HUB_OFFLINE=1`).
+- **OCR is outside the model and outside this package's pins.** LayoutLM v1 consumes words and boxes; the pipeline takes them from the caller. `ocr_words_with_tesseract` is an optional adapter that imports `pytesseract` only when called and needs a Tesseract binary on the host — neither is installed by this package, its CI, or its notebook, and DIMER hosting of the profile carries no OCR dependency.
