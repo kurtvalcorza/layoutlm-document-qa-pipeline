@@ -7,7 +7,7 @@ date_published: "2022-08-07"
 date_published_source: "Hugging Face Hub repository creation date of the exact hosted checkpoint (`createdAt` 2022-08-07T21:07:19Z, https://huggingface.co/api/models/impira/layoutlm-document-qa); the LayoutLM architecture paper is arXiv:1912.13318 (2019-12) and the pinned revision is the Hub's `main` as of 2026-09-14"
 ---
 
-# LayoutLM Document QA, impira (DIMER package v0.1.0) — Extractive Document Question Answering (Inference)
+# LayoutLM Document QA, impira — Extractive Document Question Answering (Inference)
 
 [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-impira%2Flayoutlm--document--qa-ffcc4d?style=flat)](https://huggingface.co/impira/layoutlm-document-qa)
 [![Upstream GitHub](https://img.shields.io/badge/Upstream%20GitHub-microsoft%2Funilm%20(layoutlm)-181717?style=flat&logo=github&logoColor=white)](https://github.com/microsoft/unilm/tree/master/layoutlm)
