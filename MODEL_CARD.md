@@ -2,6 +2,7 @@
 license: mit
 model_card_spec: "1.1"
 pipeline_tag: document-question-answering
+task: "Others - Document Question Answering"
 base_model: impira/layoutlm-document-qa
 date_published: "2022-08-07"
 date_published_source: "Hugging Face Hub repository creation date of the exact hosted checkpoint (`createdAt` 2022-08-07T21:07:19Z, https://huggingface.co/api/models/impira/layoutlm-document-qa); the LayoutLM architecture paper is arXiv:1912.13318 (2019-12) and the pinned revision is the Hub's `main` as of 2026-09-14"
