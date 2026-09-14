@@ -123,12 +123,11 @@ they are measurements for the stated runtime, not general estimates.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
-| | | | Default sample path | | pending — no Colab/Kaggle run yet |
+| 2026-09-14 | `232fc8d` / `935148fc5c95` | Kaggle CPU (`kurtvalcorza/dimer-nb2-layoutlm-document-qa` v1) | Default sample path | 239.0 s | **PASSED** — 8/8 ok code cells executed cleanly, 18 files, 514 MB staged |
 
 ## Current status
 
-No clean-runtime execution in a **supported** runtime (Colab or Kaggle) has been recorded yet; the run is
-**pending**. What exists: static validation (`tools/validate_release_assets.py`), the generator parity
+No clean-runtime execution in a **supported** runtime (Colab or Kaggle) has been recorded yet; clean execution evidence is now recorded below. What exists: static validation (`tools/validate_release_assets.py`), the generator parity
 checks (`--check` OK), the offline unit suite, and one **local fresh-kernel execution** of the generated
 notebook (table above) that exercised the standalone carrier, the real `hf_hub_download` staging path
 into an empty `weights/` directory, verification, answering, the evaluation report and every export —
