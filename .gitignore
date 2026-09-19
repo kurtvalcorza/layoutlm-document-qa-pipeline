@@ -15,3 +15,5 @@ weights/**/*.pt
 weights/**/*.pth
 weights/**/*.onnx
 weights/**/.cache/
+# Decoded CORD-v2 ground-truth columns are fetched at run time and digest-verified; never committed
+weights/cord-v2/
