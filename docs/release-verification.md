@@ -1,142 +1,167 @@
 # Release verification
 
-`tutorials/layoutlm_document_qa_colab.ipynb` (`TASK-INFERENCE`, **standalone** carrier) is a
-**release candidate** until the exact notebook revision has executed top-to-bottom in a clean
-supported runtime. Unit tests, JSON validation, code-cell compilation, the generator parity checks
-and `tools/validate_release_assets.py` are necessary checks but are **not** runtime evidence under
-DIMER Notebook Specification 2.0. This file is the durable release-gate record for the notebook.
+`tutorials/layoutlm_document_qa_colab.ipynb` (`E2E`, **standalone** carrier) is a **release candidate** until the
+exact notebook revision has executed top-to-bottom in a clean supported runtime. Unit tests, JSON validation,
+code-cell compilation, the generator parity checks and `tools/validate_release_assets.py` are necessary checks but
+are **not** runtime evidence under DIMER Notebook Specification 2.0 (REL8). This file is the durable release-gate
+record for the notebook.
 
 ## Automatic coverage (static, every pull request)
 
 CI runs `tools/validate_release_assets.py`, which checks:
 
-- notebook JSON parses; every code cell compiles as plain Python (no `%`/`!` magics); no
-  persisted outputs or execution counts; no unresolved placeholder markers; every code cell
-  is preceded by an explanatory markdown cell;
-- exactly one tutorial notebook, named in `tutorials/README.md` with its `TASK-INFERENCE`
-  profile, the notebook-spec version and the standalone carrier; `metadata.dimer` declares that
-  profile, spec `2.0`, a pedagogical mode, `standalone: true` and `generated_from` (repository, revision, module
-  SHA-256, generator);
-- the standalone carrier (ST1–ST6, PAR1–PAR3): no clone, repository install or repository import on
-  the primary path; exactly one cell tagged `embedded_module` equal to
-  `src/layoutlm_document_qa_pipeline/pipeline.py` after the generator's documented rewrites; the
-  inline `MANIFEST` equal to the committed snapshot manifest and the inline `PINS` equal to the
-  `pyproject.toml` runtime pins; the notebook byte-identical (on LF) to `tools/build_notebook.py`
-  output for its recorded revision; the pinned-install cell with its restart-on-stale-import guard;
-  `NOTEBOOK_SOURCE` recorded in exports;
-- `MODEL_ID`/`MODEL_REVISION` are bound only in the carried module cell (and repeated in the inline
-  manifest, which the notebook asserts against the module before fetching), the revision is a 40-hex
-  immutable commit, and the same identity string appears in `README.md`, `MODEL_CARD.md`, and
-  `docs/WEIGHTS.md` with no stray revisions;
+- notebook JSON parses; every code cell compiles as plain Python (no `%`/`!` magics); no persisted outputs or
+  execution counts; no unresolved placeholder markers; every code cell is preceded by an explanatory markdown cell;
+- exactly one tutorial notebook, named in `tutorials/README.md` with its `E2E` profile, the notebook-spec version
+  and the standalone carrier; `metadata.dimer` declares that profile, spec `2.0`, a §3.3 pedagogical mode,
+  `standalone: true` and `generated_from` (repository, revision, module SHA-256, generator);
+- the standalone carrier (ST1–ST8, PAR1–PAR4): no clone, repository install or repository import on the primary
+  path; one cell per carried module (`pipeline.py`, `metrics.py`, `samples.py`), each equal to its source after the
+  generator's documented rewrites; the inline `MANIFEST` equal to the committed 8-entry snapshot manifest and the
+  inline `PINS` equal to the `pyproject.toml` runtime pins; the notebook byte-identical (on LF) to
+  `tools/build_notebook.py` output for its recorded revision; the pinned-install cell with its
+  restart-on-stale-import guard; `NOTEBOOK_SOURCE` recorded in exports;
+- `MODEL_ID`/`MODEL_REVISION` bound only in the carried module cell (and repeated in the inline manifest, which the
+  notebook asserts against the module before fetching), the revision a 40-hex immutable commit, and the same
+  identity string in `README.md`, `MODEL_CARD.md` and `docs/WEIGHTS.md` with no stray revisions (the pinned
+  CORD-v2 dataset revision is the one other 40-hex string allowed);
 - the profile-specific public-API calls (`stage_missing_files`, `verify_snapshot`,
-  `LayoutLMDocumentQAPipeline.from_pretrained(weights_dir=...)`, `validate_inputs`, `answer`,
-  `evaluation_report`, the `ocr_words_with_tesseract` adapter on the BYOD branch), the ceiling print
-  (`MIN_IMAGE_SIDE`, `MAX_IMAGE_SIDE`, `MAX_WORDS`, `MAX_QUESTION_CHARS`, `MAX_SEQ_LEN`, `DOC_STRIDE`,
-  `MAX_ANSWER_TOKENS`, `BOX_GRID`), the exports, the learner-facing statements (the model never sees
-  pixels, the span score is an uncalibrated within-page product of softmaxes, the model always returns
-  a span, no DocVQA benchmark, ANLS as sanity check, no OCR installed, capability exclusions) and the
-  gated-off BYOD default listed in the validator; forbidden patterns (credential-in-URL, any `git clone`
-  / `github.com` / repository import on the primary path, a mutable `revision='main'`, direct
-  `from transformers import` / `LayoutLMForQuestionAnswering` / `AutoTokenizer` / `import pytesseract`
-  / `start_logits` / `from huggingface_hub import` use **outside the carried module cell**,
-  `trust_remote_code=True`, `pickle.load`, `torch.load(`, `extractall(`);
-- `STATUS.md`, `README.md` and `tutorials/README.md` agree on one release-status token and no
-  document makes an unsupported release-grade, production-readiness or benchmark claim;
-- `MODEL_CARD.md` front matter (`model_card_spec: "1.1"`), single H1, required heading order, and
-  immutable provenance.
+  `LayoutLMDocumentQAPipeline.from_pretrained(weights_dir=...)`, `fetch_corpus` from the pinned cache path,
+  `read_corpus` + `build_sample_dataset(seed=SPLIT_SEED)` / `load_byod_dataset`, `validate_dataset` per split,
+  `check_split_disjoint`, `write_dataset_jsonl`, `pipe.check_fit` per split, the ceiling print, `validate_inputs`
+  with the box-outside-page refusal probe, `pipe.answer` with the sanity checks and the per-page
+  `evaluation_report` on the rendered invoice, `last_number_baseline`, `keyword_lookup_baseline`, `pipe.evaluate`
+  on the frozen model and on the validation and test splits after adaptation with the ANLS assertions, `pipe.adapt`
+  with its explicit hyperparameters, `evaluation_report` on the invoice after adaptation, `pipe.save_artifact`,
+  `LayoutLMDocumentQAPipeline.from_artifact` and the reload-parity assertion, and the provenance fields
+  `weight_format`, `weight_sha256` and the `corpus` block), the seven expected `outputs/` paths, the learner-facing
+  statements (MIT weights, the model never sees pixels, adaptation with gold spans, the CC BY 4.0 corpus, the span
+  score as a product of two softmax probabilities that is not a calibrated probability, the two non-neural
+  baselines, no dispersion estimate, the OCR exclusion, the snapshot note, the windowed-not-trained rule) and the
+  gated-off BYOD default; forbidden patterns (credential-in-URL, any `git clone` / `github.com` / repository import
+  on the primary path, a mutable `revision='main'`, direct `from transformers import` /
+  `LayoutLMForQuestionAnswering` / `AutoTokenizer` / `start_logits` / `from huggingface_hub import` /
+  `get_hf_file_metadata` / `urllib.request` / `pyarrow` / `pytesseract` / `safetensors` / `torch.optim` /
+  `.backward(` / `pipe._model` use **outside the carried module cells**, `trust_remote_code=True`, `pickle.load`,
+  `torch.load(` without `weights_only=True`, `extractall(`);
+- `STATUS.md`, `README.md` and `tutorials/README.md` agree on one release-status token and no document makes an
+  unsupported release-grade, production-readiness or benchmark claim;
+- `MODEL_CARD.md` front matter (`model_card_spec: "1.1"`), single H1, the 19 required headings in order, and the
+  immutable provenance section.
 
-CI also installs the pinned CPU-only torch wheel plus `transformers`, `safetensors`, `numpy` and
-`pillow`, runs `ruff check src tests tools`, `tools/build_notebook.py --check`, and the offline unit
-suite (`tests/test_pipeline.py`, `tests/test_role_helpers.py`, `tests/test_notebook_parity.py`;
-injected runner, no weights). These are source/provenance and unit checks. They are **not** execution
-evidence.
+CI also installs the pinned CPU-only torch wheel plus `transformers`, `safetensors`, `numpy`, `pillow`,
+`huggingface-hub` and `pyarrow`, runs `ruff check src tests tools`, `tools/build_notebook.py --check`, and the
+offline unit suite (`tests/test_pipeline.py`, `tests/test_adaptation.py`, `tests/test_role_helpers.py`,
+`tests/test_import_boundary.py`, `tests/test_notebook_parity.py`; injected runner, window counter and corpus fetcher,
+temporary manifests, no weights — `tests/test_model_backed.py` is skipped without the snapshot). These are
+source/provenance and unit checks. They are **not** execution evidence.
 
 ## Executor paths
 
 | Path | Runtime | Role |
 |---|---|---|
 | Google Colab (supported user path) | Colab CPU runtime (CUDA used automatically when present) | The runtime the tutorial is written for; a clean top-to-bottom run here is promotion evidence |
-| Kaggle CLI kernel | Kaggle CPU kernel, Python 3.12 image | Reproducible clean-room executor of the same class; the notebook is pushed verbatim plus one leading shim cell that provides `google.colab` and chdirs to a scratch directory (**no repository checkout is needed — the notebook is standalone**) |
-| Local Windows-venv harness (pre-flight only) | Workstation, sequential cell executor with a `google.colab` shim, `CUDA_VISIBLE_DEVICES=-1` | Builder pre-flight to catch defects before spending cloud runs; **not** a supported runtime and not promotion evidence |
+| Kaggle CLI kernel or equivalent fresh container | Fresh CPU or GPU container, Python 3.12 image; the committed notebook executed verbatim in a fresh interpreter with a `google.colab` shim and **no repository checkout** (the notebook is standalone) | Reproducible clean-room executor of the same class; promotion evidence |
+| Local harness (pre-flight only) | Workstation, sequential cell executor with a `google.colab` shim, pre-staged pins | Builder pre-flight to catch defects before spending cloud runs; **not** a supported runtime and **not** promotion evidence |
 
 ## Supported release verification procedure
 
 Before changing the registry status from `Candidate` to `Release-grade`:
 
 1. resolve the exact PR/commit head under review and confirm static CI is green;
-2. open that exact notebook revision in a new CPU (or CUDA) runtime (Colab, or the Kaggle
-   executor above) with **no repository checkout** and a clean model cache;
-3. run the notebook top-to-bottom without editing implementation cells (form parameters at their
-   defaults for the sample path: `USE_BYOD = False`);
-4. verify that Section 1 reports `NOTEBOOK_SOURCE.repository_revision` equal to the revision recorded
-   in `metadata.dimer.generated_from` and that the installed core package versions equal the inline
-   `PINS` (= `pyproject.toml`);
+2. open that exact notebook revision in a new CPU or CUDA runtime (Colab, or a fresh-container executor above) with
+   **no repository checkout**, an empty Hugging Face cache, and no pre-staged files under the working-directory
+   snapshot `weights/layoutlm-document-qa/` or the corpus cache `weights/cord-v2/` (the standalone path writes the
+   manifest itself, stages the missing files from the Hub, and reads the pinned CORD-v2 columns from the Hub, so
+   neither directory may be seeded);
+3. run the notebook top-to-bottom without editing implementation cells (form parameters at their defaults:
+   `USE_BYOD = False`, `SPLIT_SEED = 42`, `EPOCHS = 6`, `LEARNING_RATE = 3e-5`, `BATCH_SIZE = 16`,
+   `TRAINABLE_ENCODER_LAYERS = 4`);
+4. verify that Section 1 reports `NOTEBOOK_SOURCE.repository_revision` equal to the revision recorded in
+   `metadata.dimer.generated_from` and that the installed core package versions equal the inline `PINS`
+   (= `pyproject.toml`): `torch==2.14.0`, `transformers==4.57.6`, `safetensors==0.8.0`, `numpy==2.5.3`,
+   `pillow==11.3.0`, `huggingface-hub==0.36.2`, `pyarrow==25.0.1` (an interpreter restart after the install is
+   expected where the runtime's preinstalled torch or numpy differ from the pins);
 5. verify every default-path stage completes:
    - pinned runtime installed from the inline `PINS` with no GitHub access;
-   - the carried module cell executes (defines `LayoutLMDocumentQAPipeline`, `validate_inputs`,
-     `evaluation_report`, `anls`, `exact_match`, `normalize_box`, `ocr_words_with_tesseract`,
-     `verify_snapshot`, `stage_missing_files`) with no import of the repository package and no import of
-     `pytesseract` on the default path;
-   - synthetic 850×1100 invoice-style form rendered in code with 73 words and their renderer-recorded
-     boxes, its RGB SHA-256 printed and the ceilings (`MIN_IMAGE_SIDE` 1, `MAX_IMAGE_SIDE` 10000,
-     `MAX_WORDS` 2000, `MAX_QUESTION_CHARS` 256, `MAX_SEQ_LEN` 512, `DOC_STRIDE` 128,
-     `MAX_ANSWER_TOKENS` 15, `BOX_GRID` 1000) surfaced;
-   - pinned `impira/layoutlm-document-qa` acquisition at the immutable revision through the carried
-     module: the inline `MANIFEST` is asserted against the module identity and written to
-     `weights/layoutlm-document-qa/`, `stage_missing_files(WEIGHTS_DIR, allow_download=True)` reports
-     all 8 manifest entries on a clean runtime, `verify_snapshot` returns its summary dict, and
-     `from_pretrained(weights_dir=WEIGHTS_DIR)` loads from the verified directory;
-   - `validate_inputs` writes `outputs/layoutlm_document_qa_input_manifest.json` (verdict `accepted`,
-     73 words, five checked questions, one recorded rejection finding from the box-outside-page probe);
-   - `answer` returning one span per question with `n_windows` 1; record the answers and scores (the
-     card-pass CPU smoke answered all five authored questions exactly — `NW-2026-0417`,
-     `Blue Yonder Airlines`, `$1,099.20`, `11 April 2026`, `40` — at scores 0.999–1.000; a materially
-     different result is a finding to record, not a failure by itself, because no metric is asserted);
-   - `evaluation_report` writes `outputs/layoutlm_document_qa_evaluation_report.json` with verdict
-     `sample-sanity`, an `anls` entry, an `exact_match` entry and five per-question entries on the
-     synthetic sample (`not-measurable` on BYOD), stated as such;
-   - `outputs/layoutlm_document_qa_result.json`, `outputs/layoutlm_document_qa_answers.csv` and
-     `outputs/layoutlm_document_qa_annotated.png` written with `NOTEBOOK_SOURCE`, model revision, model
-     licence, runtime versions and device;
+   - the three carried module cells execute (defining `LayoutLMDocumentQAPipeline`, `verify_snapshot`,
+     `stage_missing_files`, `validate_inputs`, `evaluation_report`, `anls`, `exact_match`, `normalize_box`,
+     `docqa_metrics`, `last_number_baseline`, `keyword_lookup_baseline`, `fetch_corpus`, `read_corpus`,
+     `build_sample_dataset`, `validate_dataset`, `check_split_disjoint`, `split_dataset`, `load_byod_dataset`,
+     `write_dataset_jsonl`, `gold_texts` and the ceilings) with no import of the repository package and no import of
+     `pytesseract`;
+   - the inline manifest asserted against the module's constants, then `stage_missing_files(WEIGHTS_DIR,
+     allow_download=True)` reporting all 8 manifest entries fetched from `impira/layoutlm-document-qa` at the
+     immutable revision on a clean runtime, `verify_snapshot` returning its dict (8 files), and
+     `from_pretrained(weights_dir=WEIGHTS_DIR)` loading from the verified directory with `source` `local-snapshot`;
+   - Section 4: `fetch_corpus` checking both shards' declared size and SHA-256 against the pins, reading only the
+     `ground_truth` column of each (100 + 100 rows) and matching the pinned column digests `b499e58a…` /
+     `adf8303e…`; the seeded split into 595 / 152 / 229 questions over 119 / 30 / 50 receipts with
+     `check_split_disjoint` reporting no shared page and the three dataset digests `d063f100…` / `07e37d51…` /
+     `496e39d8…`; `outputs/…_train.jsonl` written; the four dataset refusal probes each raising `ValueError`;
+   - Section 5: the fit check dropping nothing; the ceilings (`MIN_IMAGE_SIDE` 1, `MAX_IMAGE_SIDE` 10000,
+     `MAX_WORDS` 2000, `MAX_QUESTION_CHARS` 256, `MAX_SEQ_LEN` 512, `DOC_STRIDE` 128, `MAX_ANSWER_TOKENS` 15,
+     `BOX_GRID` 1000, `MIN_RECORDS` 8, `MAX_RECORDS` 20000) surfaced; the 850×1100 invoice rendered with 73 words;
+     `validate_inputs` writing `outputs/…_input_manifest.json` (verdict `accepted`, one recorded rejection finding
+     from the box-outside-page probe); `pipe.answer` on the five authored questions with every sanity check `True`
+     and the per-page `evaluation_report` verdict `sample-sanity` (the card-pass smoke answered all five exactly —
+     `NW-2026-0417`, `Blue Yonder Airlines`, `$1,099.20`, `11 April 2026`, `40`; a different span on another
+     runtime is a finding to record, not a failure);
+   - Section 6: the last-number baseline (ANLS ≈ 0.41, exact match ≈ 0.25), the keyword-lookup baseline
+     (≈ 0.64 / ≈ 0.59) and the frozen model's test score (ANLS ≈ 0.84, exact match ≈ 0.78 on CPU float32) with the
+     per-field breakdown, and the cell's assertion that the frozen ANLS beats the last-number baseline;
+   - Section 7: `pipe.adapt` printing epoch 0 as the frozen model, 28,353,026 trainable of 127,792,898 parameters,
+     595 training questions, and a six-epoch history with validation ANLS rising (≈ 0.82 → ≈ 0.94 in the build
+     record's runs; `best_epoch` in the last epochs);
+   - Section 8: `pipe.evaluate` on the validation and test splits with the four-way comparison, the per-field
+     breakdown and `outputs/…_evaluation_report.json` written (the cell asserts the adapted test ANLS exceeds the
+     frozen one — on the sample ≈ 0.94 versus ≈ 0.84);
+   - Section 9: the five invoice questions answered by the adapted model with the `sample-sanity` report,
+     `outputs/…_answers.csv` and `outputs/…_annotated.png` written; `pipe.save_artifact` writing
+     `outputs/…_adapter/{adapter.safetensors,manifest.json}` (66 tensors, about 113 MB) and
+     `LayoutLMDocumentQAPipeline.from_artifact` reloading it with 8/8 identical answers (the cell asserts it);
+     `outputs/…_result.json` written with `NOTEBOOK_SOURCE`, the model identity and licence, the snapshot block
+     (`weight_format`, `weight_sha256`), the `corpus` block, the inference-contract items, the comparison, the
+     artifact digest, the reload parity, the runtime versions and device;
 6. verify the exports exist and the interpretation section matches the observed path;
-7. record the notebook Git blob id, commit, runtime (platform, Python, PyTorch, Transformers, device),
-   model identifier and immutable revision, whether the model cache was clean, outcome, produced
-   outputs, and any warning or applicable `SHOULD` deviation in the table below;
+7. record the notebook Git blob id, commit, runtime (platform, Python, PyTorch, Transformers, device), the model
+   identifier and immutable revision, whether the model cache, the weights directory and the corpus cache were clean,
+   outcome, produced outputs, the observed metrics (as observations, not a benchmark) and any warning or applicable
+   `SHOULD` deviation in the tables below;
 8. record no access tokens or other secrets.
 
-A known-failing default path in the supported runtime blocks release.
+A known-failing default path in the supported runtime blocks release (REL11).
+
+## Manual clean-runtime evidence
+
+| Notebook | Commit / notebook blob | Date (UTC) | Executor | Outcome |
+|---|---|---|---|---|
+| `layoutlm_document_qa_colab.ipynb` (`E2E`) | generated at `7a9a150` / blob `c068cc6f1b8e` | 2026-09-19 | Local pre-flight harness (Windows, CPython 3.12.10, CPU, `google.colab` shim, pins pre-installed, snapshot and corpus cache pre-staged) | PASS — pre-flight only, **not** promotion evidence |
+| `layoutlm_document_qa_colab.ipynb` (`TASK-INFERENCE`, superseded) | `232fc8d` / `935148fc5c95` | 2026-09-14 | Kaggle CPU (`kurtvalcorza/dimer-nb2-layoutlm-document-qa` v1) | PASSED — 8/8 code cells, 239.0 s; evidence for the earlier inference-only notebook, not for the `E2E` blob |
 
 ## Recorded executions
 
 Notebook identity is the Git blob id of `tutorials/layoutlm_document_qa_colab.ipynb` (verify with
-`git rev-parse <commit>:tutorials/layoutlm_document_qa_colab.ipynb`). Wall times, when recorded,
-are the sum of per-cell times reported by the executor and include installs and the model download;
-they are measurements for the stated runtime, not general estimates.
-
-### Local pre-flight evidence (not a supported runtime)
+`git rev-parse <commit>:tutorials/layoutlm_document_qa_colab.ipynb`). Wall times, when recorded, are the sum of
+per-cell times reported by the executor and include installs and the model download; they are measurements for the
+stated runtime, not general estimates.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
-| 2026-09-14 | notebook blob `7f7c851fdc14` (commit `a757ef7`, generated at `da06cfb`; `NOTEBOOK_SOURCE.repository_revision` = `da06cfb…`) | Local Windows-venv harness (`run_nb_local.py`: nbclient 0.11.0, fresh `python3` kernel, `CUDA_VISIBLE_DEVICES=-1`, `DIMER_NOTEBOOK_CI_PREINSTALLED=1`), Python 3.12.10, torch 2.14.0+cu130, transformers 4.57.6; no `pytesseract` in the venv | Default synthetic path, all 8 code cells: pinned install skipped (pre-installed), `stage_missing_files` fetched all 8 manifest entries (514 MB) from the Hub cache at the pinned revision into the scratch `weights/`, `verify_snapshot` PASS (8 files), renderer supplied 73 words + boxes (no OCR call), five `answer` calls → `NW-2026-0417`, `Blue Yonder Airlines`, `$1,099.20`, `11 April 2026`, `40` at scores 0.999–1.000, `n_windows` 1, `evaluation_report` `sample-sanity` (`anls` 1.0, `exact_match` 1.0), 5 outputs written | 57.0 s | PASS — pre-flight only; not promotion evidence |
-
-### Manual clean-runtime evidence
-
-| Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
-|---|---|---|---|---|---|
-| 2026-09-14 | `232fc8d` / `935148fc5c95` | Kaggle CPU (`kurtvalcorza/dimer-nb2-layoutlm-document-qa` v1) | Default sample path | 239.0 s | **PASSED** — 8/8 ok code cells executed cleanly, 18 files, 514 MB staged |
+| 2026-09-19 | generated at `7a9a150` / blob `c068cc6f1b8e` | Local Windows-venv harness (`run_nb_local.py`: nbclient, fresh `python3` kernel, `CUDA_VISIBLE_DEVICES=-1`, `HF_HUB_OFFLINE=1`, `DIMER_NOTEBOOK_CI_PREINSTALLED=1`), Python 3.12.10, torch 2.14.0+cu130, transformers 4.57.6, snapshot and CORD-v2 column cache pre-staged | Default sample path, all 11 code cells: pinned install skipped (pre-installed), `stage_missing_files` reported nothing to fetch, `verify_snapshot` PASS (8 files), corpus columns read from the pre-staged cache and split 595 / 152 / 229 over 119 / 30 / 50 receipts, fit check dropped nothing, five invoice answers exact (`sample-sanity`), baselines 0.406 / 0.635, frozen test ANLS 0.843 (41.0 s), six epochs 934.3 s (validation ANLS 0.819 → 0.870 → 0.908 → 0.894 → 0.925 → 0.960 → 0.956, epoch 5 kept), adapted test ANLS 0.942 / exact match 0.930, invoice 5/5 after adaptation, adapter 113,419,976 B / 66 tensors, reload parity 8/8, 7 outputs written; the committed blob differs from the executed one in markdown prose only (CPU timing estimates corrected after this run) | 1218.7 s | PASS — pre-flight only; not promotion evidence |
 
 ## Current status
 
-No clean-runtime execution in a **supported** runtime (Colab or Kaggle) has been recorded yet; clean execution evidence is now recorded below. What exists: static validation (`tools/validate_release_assets.py`), the generator parity
-checks (`--check` OK), the offline unit suite, and one **local fresh-kernel execution** of the generated
-notebook (table above) that exercised the standalone carrier, the real `hf_hub_download` staging path
-into an empty `weights/` directory, verification, answering, the evaluation report and every export —
-which is necessary but not promotion evidence because the workstation is not a supported runtime. The
-registry status remains **Candidate** until a reviewer confirms a recorded supported-runtime run against
-the notebook blob under review and an integrator promotes it. Facts a reviewer should weigh: the CUDA
-path has not been executed; the default path's OCR is the renderer's own word boxes, so the 5/5 result
-measures the pipeline plumbing on perfect OCR and says nothing about Tesseract or any other OCR on real
-scans — no OCR is installed or exercised anywhere in this repository; the span score is uncalibrated and
-an unanswerable question ("What is the delivery address?") still received `14 Harbour Road,` at 0.28 in
-the smoke run, so any rejection threshold is the deployment's to validate; and a 657-word page was
-answered across 4 overlapping windows in 0.47 s with the same span, which is the only long-page evidence.
+No clean-runtime execution in a **supported** runtime (Colab or Kaggle) has been recorded for the `E2E` blob. What
+exists: static validation (`tools/validate_release_assets.py`), the generator parity checks (`--check` OK), the
+offline unit suite, the model-backed regressions on CPU and on a local RTX 5070 Ti (CUDA answer, adaptation and
+reload), and one **local fresh-kernel execution** of the generated notebook (table above) that exercised the
+standalone carrier, the snapshot verification, the column-only corpus fetch, the dataset contract, the inference
+contract, the bounded fine-tuning, the held-out evaluation, the invoice re-read, the artifact export and the reload
+parity — which is necessary but not promotion evidence because the workstation is not a supported runtime. The
+registry status remains **Candidate** until a reviewer confirms a recorded supported-runtime run against the notebook
+blob under review and an integrator promotes it. Facts a reviewer should weigh: the frozen model is already strong on
+receipt totals (it was fine-tuned on DocVQA), so the gain is measured per field and is several ANLS points, not a
+rescue; the questions are templated from CORD's field categories, not written by people; CORD's words and boxes are
+annotations, cleaner than any OCR engine's output on a photographed receipt; and the adapted model's answers on the
+rendered invoice are one page of evidence about behaviour outside the corpus, not a measurement.

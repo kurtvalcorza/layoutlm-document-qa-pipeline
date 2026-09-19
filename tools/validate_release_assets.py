@@ -1,4 +1,4 @@
-"""Static release-asset validation for the LayoutLM document-QA DIMER pipeline.
+"""Static release-asset validation for the LayoutLM Document QA (impira) DIMER pipeline.
 
 Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.0 §4), the tutorial
 registry, model card, README, STATUS.md and weight documentation for source conformance and
@@ -23,68 +23,107 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = "layoutlm_document_qa_pipeline"
 REPO_NAME = "layoutlm-document-qa-pipeline"
 NOTEBOOK_NAME = "layoutlm_document_qa_colab.ipynb"
-EXPECTED_PROFILE = "TASK-INFERENCE"
+EXPECTED_PROFILE = "E2E"
 EXPECTED_MODEL_ID = "impira/layoutlm-document-qa"
 PIPELINE_CLASS = "LayoutLMDocumentQAPipeline"
-# Extra 40-hex commits the docs may legitimately cite (none yet).
-KNOWN_SHAS: frozenset[str] = frozenset(())
-
-# NOTEBOOK_SPEC 2.0 §10.3: BYOD is gated off by default so the sample path runs top-to-bottom.
+MODEL_LOAD_EXPR = f"{PIPELINE_CLASS}.from_pretrained(weights_dir=WEIGHTS_DIR)"
+KNOWN_SHAS: frozenset[str] = frozenset(
+    ("7f0115a4b758a71d6473b8d085751692da2fef98",)  # the pinned CORD-v2 dataset revision, cited beside the model revision
+)
 BYOD_GATES = ("USE_BYOD",)
-
 EXPECTED_OUTPUTS = (
+    "outputs/layoutlm_document_qa_train.jsonl",
     "outputs/layoutlm_document_qa_input_manifest.json",
     "outputs/layoutlm_document_qa_evaluation_report.json",
-    "outputs/layoutlm_document_qa_result.json",
     "outputs/layoutlm_document_qa_answers.csv",
     "outputs/layoutlm_document_qa_annotated.png",
+    "outputs/layoutlm_document_qa_adapter",
+    "outputs/layoutlm_document_qa_result.json",
 )
-
 CODE_MARKERS = (
+    # Stage 4: pinned corpus column, page-disjoint split, validation, JSONL, refusal probes
+    "USE_BYOD = False",
+    "corpus_rows = fetch_corpus(cache_dir='weights/cord-v2')",
+    "splits = build_sample_dataset(read_corpus(corpus_rows), seed=SPLIT_SEED)",
+    "records = load_byod_dataset(byod_path)",
+    "dataset_manifests = {name: validate_dataset(part) for name, part in splits.items()}",
+    "disjoint = check_split_disjoint(splits)",
+    "write_dataset_jsonl(splits['train'], 'outputs/layoutlm_document_qa_train.jsonl')",
+    # Stage 5: fit check, ceilings, the inference contract with its manifest, probe and sanity checks
+    "fit = {name: pipe.check_fit(part) for name, part in splits.items()}",
+    "ceilings = {'MIN_IMAGE_SIDE': MIN_IMAGE_SIDE, 'MAX_IMAGE_SIDE': MAX_IMAGE_SIDE, 'MAX_WORDS': MAX_WORDS, 'MAX_QUESTION_CHARS': MAX_QUESTION_CHARS, 'MAX_SEQ_LEN': MAX_SEQ_LEN, 'DOC_STRIDE': DOC_STRIDE, 'MAX_ANSWER_TOKENS': MAX_ANSWER_TOKENS, 'BOX_GRID': BOX_GRID, 'MIN_RECORDS': MIN_RECORDS, 'MAX_RECORDS': MAX_RECORDS}",
     "input_manifest = validate_inputs(words, boxes, questions, image_size=image.size, names=[image_name])",
     "validate_inputs(words[:1], [[0, 0, image.width + 1, 10]], questions, image_size=image.size)",
-    "results.append(pipe.answer(question, words=words, boxes=boxes, image_size=image.size))",
-    "report = evaluation_report(results, golds, sample_kind=sample_kind)",
-    "print({'ceilings': {'MIN_IMAGE_SIDE': MIN_IMAGE_SIDE, 'MAX_IMAGE_SIDE': MAX_IMAGE_SIDE, 'MAX_WORDS': MAX_WORDS, 'MAX_QUESTION_CHARS': MAX_QUESTION_CHARS, 'MAX_SEQ_LEN': MAX_SEQ_LEN, 'DOC_STRIDE': DOC_STRIDE, 'MAX_ANSWER_TOKENS': MAX_ANSWER_TOKENS, 'BOX_GRID': BOX_GRID}})",
-    "def synthetic_form(width=850, height=1100):",
-    "x0, y0, x1, y1 = d.textbbox((x, y), token, font=font)",
-    "image, words, boxes, qa = synthetic_form()",
-    "words, boxes = ocr_words_with_tesseract(image)",
-    "hashlib.sha256(np.asarray(image.convert('RGB')).tobytes()).hexdigest()",
-    "result['score']",
-    "annotated.save('outputs/layoutlm_document_qa_annotated.png')",
-    "writer.writerow(['image', 'question', 'answer', 'score', 'start', 'end'])",
+    "result = pipe.answer(question, words=words, boxes=boxes, image_size=image.size)",
+    "'span_is_the_indexed_words': all(r['answer'] == ' '.join(words[r['start'] : r['end'] + 1]) for r in results if r['start'] is not None)",
+    "'scores_in_unit_interval': all(0.0 <= r['score'] <= 1.0 for r in results)",
+    "frozen_form = evaluation_report(results, golds, sample_kind='synthetic')",
+    # Stage 6: two baselines and the frozen model on the test split
+    "baseline_last = last_number_baseline(test_records)",
+    "baseline_lookup = keyword_lookup_baseline(test_records)",
+    "frozen_test = pipe.evaluate(test_records)",
+    "assert frozen_test['anls'] > baseline_last['anls']",
+    # Stage 7: bounded fine-tuning with explicit hyperparameters
+    "adapt_result = pipe.adapt(",
+    "trainable_encoder_layers=TRAINABLE_ENCODER_LAYERS",
+    "lr=LEARNING_RATE",
+    # Stage 8: held-out evaluation, comparison, assertion
+    "adapted_test = pipe.evaluate(test_records)",
+    "adapted_val = pipe.evaluate(val_records)",
+    "'delta_vs_frozen'",
+    "assert adapted_test['anls'] > frozen_test['anls']",
+    # Stage 9: the invoice re-read, the per-page report, artifact, reload parity, provenance
+    "adapted_form = evaluation_report(adapted_results, golds, sample_kind='synthetic')",
+    "pipe.save_artifact(artifact_dir, metadata=",
+    "reloaded = LayoutLMDocumentQAPipeline.from_artifact(artifact_dir, weights_dir=WEIGHTS_DIR, device=pipe.device)",
+    "assert parity['identical_answers'] == parity['of']",
+    "weight_entry = next(entry for entry in MANIFEST['files'] if entry['path'] == WEIGHT_FILE)",
+    "'weight_format': 'safetensors, digest-verified'",
+    "'corpus': {'name': CORPUS_NAME, 'repo': CORPUS_REPO, 'revision': CORPUS_REVISION, 'release': CORPUS_RELEASE, 'license': CORPUS_LICENSE, 'column': CORPUS_COLUMN, 'files': CORPUS_FILES}",
     "'model_revision': MODEL_REVISION",
     "'model_license': MODEL_LICENSE",
     "transformers.__version__",
     "'device': pipe.device",
 )
-
+# Profile-specific learner-facing statements.
 MARKDOWN_MARKERS = (
-    "**Capability:** extractive document question answering",
-    "**No adaptation occurs:**",
+    "**Capability:** extractive document question answering over OCR words and boxes and bounded supervised fine-tuning",
+    "**MIT**",
     "**The model never sees pixels:**",
-    "**product of the start and end softmax probabilities of the chosen span within its",
-    "the model always returns its",
-    "needs labelled question/answer pairs",
-    "the verdict is `not-measurable`",
-    "`sample-sanity`",
-    "**The model returns a span for every question**",
-    "OCR itself (the notebook installs no Tesseract",
+    "**adaptation with gold spans**",
+    "**CC BY 4.0**",
+    "**product of the start and end softmax probabilities of the chosen span within its window**",
+    "**not a calibrated probability**",
+    "**non-neural baselines**",
+    "**last-number baseline**",
+    "**keyword-lookup baseline**",
+    "**no dispersion estimate**",
+    "OCR itself (the notebook installs no Tesseract and ships no OCR model",
+    "**Snapshot note:** the pinned revision ships a fast `tokenizer.json`",
+    "**windowed at inference and are therefore not trained on**",
 )
-
-# Runtime/model-library access must stay inside the carried module (ST1/ST2).
+# Direct-library use that must stay inside the carried module cells (G2: the notebook calls the
+# pipeline API, it does not reimplement it). Checked on every code cell except the embedded ones.
 FORBIDDEN_OUTSIDE_MODULE = (
     "from huggingface_hub import",
     "import huggingface_hub",
     "hf_hub_download(",
+    "get_hf_file_metadata(",
     "from transformers import",
     "import transformers.",
     "LayoutLMForQuestionAnswering",
     "AutoTokenizer",
-    "import pytesseract",
     "start_logits",
-    "torch.inference_mode(",
+    "urllib.request",
+    "import pyarrow",
+    "pyarrow.parquet",
+    "pytesseract",
+    "from safetensors",
+    "load_file(",
+    "save_file(",
+    ".backward(",
+    "torch.optim",
+    "pipe._model",
 )
 
 # ---------------------------------------------------------------------------
@@ -157,7 +196,7 @@ COMMON_MARKDOWN_MARKERS = (
     "**Learning objectives:**",
     "## Prerequisites",
     "Do not upload confidential or restricted",
-    "- **External access:** the Hugging Face Hub only",
+    "- **External access:** the Hugging Face Hub",
     "## 1. Install the pinned runtime",
     "## 2. Pipeline code (carried verbatim from",
     "## 3. Pin, stage and verify the model",
@@ -178,7 +217,12 @@ FORBIDDEN_PATTERNS = (
     ("trust_remote_code enabled", re.compile(r"trust_remote_code\s*[=:]\s*True")),
     (
         "unsafe deserialization",
-        re.compile(r"\bpickle\.load|\btorch\.load\s*\(|getattr\(\s*torch\s*,\s*['\"]load['\"]"),
+        re.compile(
+            r"\bpickle\.load"
+            r"|\btorch\.load\s*\((?![^)]*weights_only\s*=\s*True)"
+            r"|weights_only\s*=\s*False"
+            r"|getattr\(\s*torch\s*,\s*['\"]load['\"]"
+        ),
     ),
     ("archive extractall", re.compile(r"\.extractall\s*\(")),
     ("notebook magic or shell escape", re.compile(r"(?m)^\s*[%!]|get_ipython\(\)")),
@@ -353,13 +397,16 @@ def _validate_notebook_structure(path: Path, notebook: dict) -> tuple[list[tuple
     _check(dimer.get("notebook_mode") in ("REFERENCE", "GUIDED", "WORKSHOP"), f"{path.name}: metadata.dimer.notebook_mode must declare a §3.3 pedagogical mode")
     _check(dimer.get("standalone") is True, f"{path.name}: metadata.dimer.standalone must be true (ST6)")
     generated = dimer.get("generated_from")
+    _template = _load_tool("notebook_template").TEMPLATE
     _check(isinstance(generated, dict), f"{path.name}: metadata.dimer.generated_from is required (ST5)")
     _check(generated.get("repository") == REPO_NAME, f"{path.name}: generated_from.repository must be {REPO_NAME}")
     _check(
-        generated.get("module") == f"src/{PACKAGE}/pipeline.py",
-        f"{path.name}: generated_from.module must be src/{PACKAGE}/pipeline.py",
+        generated.get("module") == f"{_template.get('package_dir', f'src/{PACKAGE}')}/{_template.get('entry_module', 'pipeline.py')}",
+        f"{path.name}: generated_from.module must name the template entry module",
     )
-    module_sha = hashlib.sha256(_read(ROOT / "src" / PACKAGE / "pipeline.py").encode("utf-8")).hexdigest()
+    _pkg_dir = ROOT / _template.get("package_dir", f"src/{PACKAGE}")
+    _order = _load_tool("build_notebook")._module_order(_pkg_dir, list(_template.get("modules", ["pipeline.py"])))
+    module_sha = hashlib.sha256("".join(_read(_pkg_dir / m) for m in _order).encode("utf-8")).hexdigest()
     _check(
         generated.get("module_sha256") == module_sha,
         f"{path.name}: generated_from.module_sha256 does not match src/ (PAR4: regenerate the notebook)",
@@ -430,38 +477,47 @@ def _validate_gates(path: Path, code_cells: list[tuple[int, str, ast.Module]]) -
                 )
 
 
-def _validate_embedded_module(path: Path, notebook: dict, build) -> int:
-    """PAR1: exactly one tagged cell, equal to the module after the documented rewrites."""
+def _validate_embedded_modules(path: Path, notebook: dict, build) -> list[int]:
+    """PAR1: one tagged cell per carried module, in dependency order, each equal to its module after
+    the documented rewrites (generator /2 multi-module carrier; ST2 applied per module)."""
     tagged = [
         (index, cell)
         for index, cell in enumerate(notebook.get("cells", []))
         if cell.get("cell_type") == "code" and cell.get("metadata", {}).get("dimer", {}).get("embedded_module")
     ]
-    _check(len(tagged) == 1, f"{path.name}: exactly one cell must be tagged metadata.dimer.embedded_module (ST2)")
-    index, cell = tagged[0]
+    template = _load_tool("notebook_template").TEMPLATE
+    recorded = notebook["metadata"]["dimer"]["generated_from"]["revision"]
+    context = build.load_context(ROOT, template, recorded)
+    expected_rels = context["module_rels"]
     _check(
-        cell["metadata"]["dimer"]["embedded_module"] == f"src/{PACKAGE}/pipeline.py",
-        f"{path.name}: embedded_module tag must name src/{PACKAGE}/pipeline.py",
+        [cell["metadata"]["dimer"]["embedded_module"] for _, cell in tagged] == expected_rels,
+        f"{path.name}: the cells tagged metadata.dimer.embedded_module must be exactly {expected_rels}, in order (ST2)",
     )
-    expected = build.apply_rewrites(_read(ROOT / "src" / PACKAGE / "pipeline.py"))
-    _check(
-        _cell_source(cell).rstrip("\n") + "\n" == expected,
-        f"{path.name}: embedded module differs from src/{PACKAGE}/pipeline.py (PAR1); regenerate the notebook",
-    )
-    return index
+    for (index, cell), module, rel in zip(
+        tagged, context["modules"], context["module_rels"], strict=True
+    ):
+        _check(
+            cell["metadata"]["dimer"].get("module_sha256") == context["per_module_sha256"][rel],
+            f"{path.name}: cell {index} module_sha256 tag does not match {rel}",
+        )
+        _check(
+            _cell_source(cell).rstrip("\n") + "\n" == context["embedded"][module],
+            f"{path.name}: embedded module cell {index} differs from {rel} (PAR1); regenerate the notebook",
+        )
+    return [index for index, _ in tagged]
 
 
 def _validate_identity(
-    path: Path, code_cells: list[tuple[int, str, ast.Module]], embedded_index: int, revision: str
+    path: Path, code_cells: list[tuple[int, str, ast.Module]], embedded: list[int], revision: str
 ) -> None:
     """Identity constants are bound in the carried module only; nothing outside rebinds them."""
     for index, _source, tree in code_cells:
-        if index == embedded_index:
+        if index in embedded:
             continue
         for node in ast.walk(tree):
             rebound = [name for name in _assignment_targets(node) if name in IDENTITY_NAMES]
             _check(not rebound, f"{path.name}: {rebound} must not be rebound outside the module cell (cell {index})")
-    outside = "\n".join(source for index, source, _ in code_cells if index != embedded_index)
+    outside = "\n".join(source for index, source, _ in code_cells if index not in embedded)
     manifest_block = re.search(r"^MANIFEST = (\{.*?^\})$", outside, re.M | re.S)
     _check(manifest_block is not None, f"{path.name}: model cell must carry an inline MANIFEST literal (ST3)")
     outside_without_manifest = outside.replace(manifest_block.group(0), "")
@@ -502,12 +558,12 @@ def _validate_bootstrap_guard(path: Path, code_cells: list[tuple[int, str, ast.M
 
 
 def _validate_notebook_content(
-    path: Path, code_cells: list[tuple[int, str, ast.Module]], markdown: str, embedded_index: int
+    path: Path, code_cells: list[tuple[int, str, ast.Module]], markdown: str, embedded: list[int]
 ) -> None:
     model_id, _revision = _package_identity()
     stripped = {index: _strip_comments(source) for index, source, _ in code_cells}
     code = "\n".join(stripped.values())
-    outside = "\n".join(text for index, text in stripped.items() if index != embedded_index)
+    outside = "\n".join(text for index, text in stripped.items() if index not in embedded)
     missing = [marker for marker in COMMON_CODE_MARKERS + CODE_MARKERS if marker not in code]
     _check(not missing, f"{path.name}: missing required source markers: {missing}")
     present = [label for label, pattern in FORBIDDEN_PATTERNS if pattern.search(code)]
@@ -515,8 +571,8 @@ def _validate_notebook_content(
     leaked = [marker for marker in FORBIDDEN_OUTSIDE_MODULE if marker in outside]
     _check(not leaked, f"{path.name}: direct library use outside the carried module cell (G2): {leaked}")
     _check(
-        f"pipe = {PIPELINE_CLASS}.from_pretrained(weights_dir=WEIGHTS_DIR)" in outside,
-        f"{path.name}: must load through {PIPELINE_CLASS}.from_pretrained(weights_dir=WEIGHTS_DIR) (INF1)",
+        f"pipe = {MODEL_LOAD_EXPR}" in outside,
+        f"{path.name}: must load through {MODEL_LOAD_EXPR} (INF1)",
     )
     _validate_gates(path, code_cells)
     _validate_bootstrap_guard(path, code_cells)
@@ -537,11 +593,11 @@ def validate_notebooks() -> None:
     build = _load_tool("build_notebook")
     notebook = json.loads(_read(path))
     code_cells, markdown = _validate_notebook_structure(path, notebook)
-    embedded_index = _validate_embedded_module(path, notebook, build)
+    embedded = _validate_embedded_modules(path, notebook, build)
     _model_id, revision = _package_identity()
-    _validate_identity(path, code_cells, embedded_index, revision)
+    _validate_identity(path, code_cells, embedded, revision)
     _validate_parity(path, notebook, code_cells, build)
-    _validate_notebook_content(path, code_cells, markdown, embedded_index)
+    _validate_notebook_content(path, code_cells, markdown, embedded)
     registry = _read(tutorials / "README.md")
     _check(f"`{path.name}`" in registry, f"{path.name} missing from tutorials/README.md")
     _check(f"`{EXPECTED_PROFILE}`" in registry, f"tutorials/README.md must record `{EXPECTED_PROFILE}`")
