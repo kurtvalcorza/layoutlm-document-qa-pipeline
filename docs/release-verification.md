@@ -157,3 +157,19 @@ stated runtime, not general estimates.
 **Release-grade.** The `E2E` notebook blob `ad2dea7f` (committed at `8541181`) executed top-to-bottom in a clean Kaggle Tesla T4 runtime on 2026-09-19 (11/11 ok (1 restart after install cell), 339.2 s, 20 files, 515 MB fetched from the Hub and digest-verified inside the notebook) with no repository checkout — the REL1/REL10 supported-runtime evidence this file gates on. The local pre-flight rows above are what preceded it and remain history. Any later change to the carried modules or to the notebook produces a new blob, and the registry returns to **Candidate** until a clean run of that blob is recorded here.
 
 Facts a reviewer should still weigh: the frozen model is already strong on receipt totals (it was fine-tuned on DocVQA), so the gain is measured per field (item count 0.17 → 0.83, item name 0.79 → 0.92, change 0.87 → 1.00 on the T4 run; overall ANLS 0.843 → 0.940) and is several points, not a rescue; the questions are templated from CORD's field categories, not written by people; CORD's words and boxes are annotations, cleaner than any OCR engine's output on a photographed receipt; and the adapted model's answers on the rendered invoice (5/5 on the T4 run) are one page of evidence about behaviour outside the corpus, not a measurement.
+
+## Supplemental document question answering workshop — `tutorials/DIMER_Document_QA_LayoutLM_vs_Pix2Struct_Workshop.ipynb`
+
+This entry applies only to the supplemental workshop notebook, not the primary tutorial executions above.
+
+### Maintainer-supplied successful Colab run — 2026-09-26
+
+The maintainer supplied the [executed notebook](execution-evidence/2026-09-26/DIMER_Document_QA_LayoutLM_vs_Pix2Struct_Workshop.ipynb) and authorized merging PR #7 (merge commit `9697355`). The file is archived byte-for-byte, SHA-256 `37b941bf2d09446b953b2d934ff3ec256b434dce42fce7d3940c2128102d6e61`. All 29 code cells have execution counts, 47 saved outputs and zero saved errors. Code-cell sources match commit `fb8415f59f5b0f926d54431c6c16d6d263c4cec2`, tutorial blob `256c9d9af0e68fc7b63803591eacddc2f5c017af`, apart from Colab-inserted `# @title` lines. Later commits on `main` that touch the notebook (`49d9757` (AI Use Disclosure)) change only markdown cells; its code cells are identical to the executed revision. This evidence commit does not change tutorial code.
+
+Scope: Default path: 50 test pages, 229 question-answer records over 10 fields; LayoutLM (OCR-based) against Pix2Struct (OCR-free) with last-number and keyword-lookup baselines. BYOD was not exercised.
+
+Saved runtime: Python 3.13.15, torch 2.14.0+cu130, Transformers 4.57.6, huggingface_hub 0.36.2, pyarrow 25.0.1, NumPy 2.1.3 (preloaded by the host kernel, retained), CUDA Tesla T4. Execution reaches the final completion summary. The separate exported files were not supplied, so their bytes/digests were not independently inspected. Saved counts run sequentially from 1 to 29; runtime freshness and absence of manual restarts/reruns are not independently established by the artifact.
+
+Results (sample-sanity measures on the built-in data, not general model rankings): ANLS / exact match: last-number baseline 0.406 / 0.253, keyword lookup 0.635 / 0.594, LayoutLM 0.843 / 0.782, Pix2Struct 0.801 / 0.659; no empty answers. Mean latency LayoutLM 0.045 s, Pix2Struct 0.666 s; Pix2Struct truncation rate 0.
+
+Status remains **Candidate**. Merge approval and this successful default-path run do not close the optional-path (FULL/BYOD) or REL12 qualification gates, and `metadata.dimer.clean_runtime_evidence` in the notebook stays `pending` as authored (editing it would change the verified blob).
