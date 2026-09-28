@@ -3,6 +3,7 @@
 The functions here never infer trust from an uploaded manifest. Downloads use
 caller-owned, immutable pins; source files carried in the notebook are trusted code.
 """
+
 from __future__ import annotations
 
 import csv
@@ -15,9 +16,10 @@ import shutil
 import tempfile
 import time
 import urllib.request
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterator, Mapping
+from typing import Any
 
 SCHEMA = "org.dimer.receipt-intelligence.v1"
 FIELDS = ("total_amount", "subtotal_amount", "tax_amount", "service_charge")
@@ -40,8 +42,9 @@ class IntegrityError(RuntimeError):
 
 
 def canonical(value: Any) -> bytes:
-    return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"),
-                      allow_nan=False).encode("utf-8")
+    return json.dumps(
+        value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+    ).encode("utf-8")
 
 
 def digest(value: Any) -> str:
@@ -59,6 +62,7 @@ def file_hash(path: str | Path) -> str:
 def read_json(path: str | Path) -> Any:
     def reject_constant(value: str) -> None:
         raise ContractError(f"Non-finite JSON number: {value}")
+
     def unique_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for key, value in pairs:
@@ -66,8 +70,10 @@ def read_json(path: str | Path) -> Any:
                 raise ContractError(f"Duplicate JSON key: {key}")
             out[key] = value
         return out
-    return json.loads(Path(path).read_text("utf-8"), object_pairs_hook=unique_pairs,
-                      parse_constant=reject_constant)
+
+    return json.loads(
+        Path(path).read_text("utf-8"), object_pairs_hook=unique_pairs, parse_constant=reject_constant
+    )
 
 
 def write_json(path: str | Path, value: Any) -> None:
@@ -89,8 +95,9 @@ def read_jsonl(path: str | Path) -> list[dict[str, Any]]:
     rows = []
     for line in Path(path).read_text("utf-8").splitlines():
         if line.strip():
-            value = json.loads(line, parse_constant=lambda _: (_ for _ in ()).throw(
-                ContractError("Non-finite JSON number")))
+            value = json.loads(
+                line, parse_constant=lambda _: (_ for _ in ()).throw(ContractError("Non-finite JSON number"))
+            )
             if not isinstance(value, dict):
                 raise ContractError("Each JSONL record must be an object")
             rows.append(value)
@@ -103,7 +110,15 @@ def write_jsonl(path: str | Path, rows: list[dict[str, Any]]) -> None:
 
 
 def spreadsheet_safe(value: Any) -> str:
-    text = "" if value is None else str(value)
+    """Neutralise formula-like untrusted strings for spreadsheet-facing CSV (numbers are left as numbers).
+
+    CSV quoting alone is not a formula-injection defence; the exact raw string stays in JSON outputs.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, bool | int | float):
+        return str(value)
+    text = str(value)
     if text.lstrip().startswith(("=", "+", "-", "@")) or text.startswith(("\t", "\r", "\n")):
         return "'" + text
     return text
@@ -135,6 +150,20 @@ def safe_id(value: str) -> str:
     return value
 
 
+RECEIPT_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}")
+
+
+def safe_receipt_id(value: str) -> str:
+    """Receipt IDs may contain ':' (``cord-v2:test:0000``); never use them directly as file names."""
+    if not isinstance(value, str) or not RECEIPT_ID_RE.fullmatch(value):
+        raise ContractError("Receipt IDs must be 1-96 nonidentifying ASCII letters/digits/._:-")
+    return value
+
+
+def file_key(receipt_id: str) -> str:
+    return safe_receipt_id(receipt_id).replace(":", "__")
+
+
 def verify_file(path: str | Path, pin: Mapping[str, Any]) -> None:
     path = Path(path)
     if not path.is_file() or path.is_symlink():
@@ -155,10 +184,16 @@ def verify_file(path: str | Path, pin: Mapping[str, Any]) -> None:
         raise IntegrityError("An immutable content digest is required")
 
 
-def download_pinned(url: str, destination: str | Path, pin: Mapping[str, Any],
-                    allowed_hosts: tuple[str, ...], max_bytes: int = 3 * 1024**3) -> Path:
+def download_pinned(
+    url: str,
+    destination: str | Path,
+    pin: Mapping[str, Any],
+    allowed_hosts: tuple[str, ...],
+    max_bytes: int = 3 * 1024**3,
+) -> Path:
     """Read only caller-owned URLs. Validate caches as rigorously as downloads."""
     from urllib.parse import urlparse
+
     parsed = urlparse(url)
     if parsed.scheme != "https" or parsed.hostname not in allowed_hosts or parsed.username:
         raise IntegrityError("Unapproved asset origin")
@@ -198,16 +233,16 @@ def inventory(root: Path, exclude: tuple[str, ...] = ("stage_receipt.json",)) ->
         if path.is_symlink():
             raise IntegrityError("Symlinks are not allowed in stage outputs")
         if path.is_file() and path.name not in exclude:
-            out[path.relative_to(root).as_posix()] = {"bytes": path.stat().st_size,
-                                                     "sha256": file_hash(path)}
+            out[path.relative_to(root).as_posix()] = {"bytes": path.stat().st_size, "sha256": file_hash(path)}
     return out
 
 
 class StageStore:
     """Atomic success receipts with recursive verification and retry invalidation."""
 
-    def __init__(self, root: str | Path, code_digest: str, configuration: dict[str, Any],
-                 graph: dict[str, list[str]]) -> None:
+    def __init__(
+        self, root: str | Path, code_digest: str, configuration: dict[str, Any], graph: dict[str, list[str]]
+    ) -> None:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.code_digest = code_digest
@@ -229,7 +264,9 @@ class StageStore:
     def verify(self, stage: str) -> dict[str, Any]:
         directory = self.root / safe_id(stage)
         receipt = read_json(directory / "stage_receipt.json")
-        if receipt["code_digest"] != self.code_digest or receipt["configuration_digest"] != digest(self.configuration):
+        if receipt["code_digest"] != self.code_digest or receipt["configuration_digest"] != digest(
+            self.configuration
+        ):
             raise IntegrityError(f"Stage {stage} belongs to different source/configuration")
         if receipt["state"] != "success" or inventory(directory) != receipt["outputs"]:
             raise IntegrityError(f"Stage {stage} outputs are missing or altered")
@@ -249,10 +286,16 @@ class StageStore:
         started = time.perf_counter()
         try:
             yield temporary
-            receipt = {"schema": SCHEMA + ".stage", "stage": name, "state": "success",
-                       "code_digest": self.code_digest, "configuration_digest": digest(self.configuration),
-                       "dependencies": dependency_hashes, "outputs": inventory(temporary),
-                       "elapsed_seconds": time.perf_counter() - started}
+            receipt = {
+                "schema": SCHEMA + ".stage",
+                "stage": name,
+                "state": "success",
+                "code_digest": self.code_digest,
+                "configuration_digest": digest(self.configuration),
+                "dependencies": dependency_hashes,
+                "outputs": inventory(temporary),
+                "elapsed_seconds": time.perf_counter() - started,
+            }
             write_json(temporary / "stage_receipt.json", receipt)
             os.replace(temporary, self.root / name)
         finally:

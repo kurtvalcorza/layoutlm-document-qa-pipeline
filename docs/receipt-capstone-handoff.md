@@ -134,3 +134,13 @@ Once the missing attachment is available and the draft imports are repaired, add
 Report separately: source built, source checks, CPU tests, actual hosted execution, annotation-review scope, release qualification and publication state. Include exact commit/notebook identities, commands and observed outcomes; do not infer success from an agent report or a green badge alone.
 
 Keep this PR in draft while the implementation is incomplete. No merge or Release-grade promotion is implied. The first immediate blocker is the missing `receipt_fields.py` source; the main engineering task after that is reconciling the preserved drafts with the branch's existing asset-preparation work and completing the specified standalone workflow.
+
+## 10. Update — capstone build (28 September 2026, later session)
+
+The standalone build is now on this branch. Where it differs from the sections above, this section supersedes them. The sections above are kept as the historical handoff.
+
+- **`receipt_fields.py`:** the missing draft was still unavailable. A new module was written from specification §§8–9 and is labelled as new, not reconstructed. If the original attachment (SHA-256 `bcf62b4f…`) turns up, diff the two before merging.
+- **Data path reconciled:** the frozen manifests are the single source of truth. `receipt_data.py` now verifies every shard and row against them and recomputes roles and exclusions, which must match. The draft's own pins and ID scheme were removed.
+- **Implemented:** pinned OCR install and contract, rules, frozen and adapted LayoutLM, training-only alignment, epoch 1–4 selection, metrics with paired bootstrap, review policy with refer-all fallback, sealed selection record, diagnostics, SafeTensors bundle, fresh-process replay, both BYOD modes, the generated 16-section guided notebook, tests, CI and registry entries.
+- **Evidence:** built, source-checked and CPU-tested with labelled test doubles, plus one chain with a local Tesseract build. **No hosted run, no real-CORD or pretrained execution and no annotation audit exist yet.** See `receipt-release-evidence.md` for commands and results, and `receipt-capstone.md` for the resolved specification details.
+- **Next:** one fresh Colab T4 Run all on the PR head, which will first qualify the Linux OCR install. Then BYOD positive and negative runs and the annotation audit. Keep this PR in draft and Candidate.
