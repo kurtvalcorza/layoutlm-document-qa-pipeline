@@ -1,0 +1,76 @@
+{
+  "category_counts": {
+    "menu.cnt": 2333,
+    "menu.discountprice": 111,
+    "menu.etc": 9,
+    "menu.itemsubtotal": 7,
+    "menu.nm": 2573,
+    "menu.num": 109,
+    "menu.price": 2559,
+    "menu.sub.cnt": 191,
+    "menu.sub.nm": 404,
+    "menu.sub.price": 157,
+    "menu.sub.unitprice": 14,
+    "menu.unitprice": 738,
+    "menu.vatyn": 3,
+    "sub_total.discount_price": 81,
+    "sub_total.etc": 127,
+    "sub_total.othersvc_price": 2,
+    "sub_total.service_price": 123,
+    "sub_total.subtotal_price": 674,
+    "sub_total.tax_price": 454,
+    "total.cashprice": 659,
+    "total.changeprice": 622,
+    "total.creditcardprice": 156,
+    "total.emoneyprice": 53,
+    "total.menuqty_cnt": 288,
+    "total.menutype_cnt": 53,
+    "total.total_etc": 35,
+    "total.total_price": 978,
+    "void_menu.nm": 1,
+    "void_menu.price": 1
+  },
+  "exact_duplicate_families": [
+    {
+      "cross_role": false,
+      "ids": [
+        "cord-v2:train:0265",
+        "cord-v2:train:0285"
+      ],
+      "pixel_sha256": "267eaf4bac8f07bfc03dbc7cd0d0792c7c85ee4d5c73fad53bddc69bd8260ff2"
+    },
+    {
+      "cross_role": false,
+      "ids": [
+        "cord-v2:train:0058",
+        "cord-v2:train:0109"
+      ],
+      "pixel_sha256": "c57e4d351cd51397b886f5b50ee39b17e670c6dceb05d3dceceb454bb411449f"
+    }
+  ],
+  "exclusions": [
+    {
+      "reason": "within_role_exact_duplicate",
+      "receipt_id": "cord-v2:train:0109"
+    },
+    {
+      "reason": "within_role_exact_duplicate",
+      "receipt_id": "cord-v2:train:0285"
+    }
+  ],
+  "human_annotation_review": "pending; no independent human review claimed",
+  "included_counts": {
+    "test": 100,
+    "train": 798,
+    "validation_model": 50,
+    "validation_policy": 50
+  },
+  "near_duplicate_review": "not performed; exact-pixel audit is not template-disjointness",
+  "nominal_counts": {
+    "test": 100,
+    "train": 800,
+    "validation": 100
+  },
+  "numeric_reference_audit": "performed by the versioned parser during prepare; unresolved references remain unscoreable",
+  "schema": "org.dimer.receipt-source-audit.v1"
+}
