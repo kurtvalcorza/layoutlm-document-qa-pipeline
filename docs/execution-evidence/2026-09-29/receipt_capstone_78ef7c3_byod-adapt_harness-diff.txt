@@ -1,0 +1,11 @@
+--- a/code-02
++++ b/code-02
+@@ -4,4 +4,4 @@
+-USE_BYOD = False # @param {type:'boolean'}
+-BYOD_MODE = 'inference' # @param ['inference', 'adapt']
+-BYOD_PATH = '' # @param {type:'string'}
+-BYOD_AUTHORIZED = False # @param {type:'boolean'}
++USE_BYOD = True # @param {type:'boolean'}
++BYOD_MODE = 'adapt' # @param ['inference', 'adapt']
++BYOD_PATH = '/kaggle/working/byod/adapt.zip' # @param {type:'string'}
++BYOD_AUTHORIZED = True # @param {type:'boolean'}

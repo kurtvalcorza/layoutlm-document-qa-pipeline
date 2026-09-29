@@ -92,6 +92,7 @@ Tests are offline: they use an injected fake runner, window counter and corpus f
 - `MODEL_CARD.md` — MODEL_CARD_SPEC 1.1 card, provenance digests, input/output and adaptation contract, measured runtime.
 - `docs/WEIGHTS.md` — weight provenance, OCR boundary, adapter and corpus notes.
 - `STATUS.md` — release status.
+- `docs/receipt-capstone.md`, `docs/receipt-capstone-spec.md`, `docs/receipt-annotation-audit.md`, `docs/receipt-release-evidence.md` — receipt-intelligence capstone design, resolved specification details, annotation-audit scope and evidence ladder.
 
 ## Licensing
 

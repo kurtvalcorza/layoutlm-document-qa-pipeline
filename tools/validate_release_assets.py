@@ -7,6 +7,7 @@ cross-document identity consistency, and runs the generator parity checks (PAR1�
 This is source validation only. A PASS here is NOT clean-runtime execution evidence;
 the release gate is defined in docs/release-verification.md.
 """
+
 # ruff: noqa: E501  -- rule messages name the file and requirement in full; they are kept on one line
 from __future__ import annotations
 
@@ -24,12 +25,15 @@ PACKAGE = "layoutlm_document_qa_pipeline"
 REPO_NAME = "layoutlm-document-qa-pipeline"
 NOTEBOOK_NAME = "layoutlm_document_qa_colab.ipynb"
 WORKSHOP_NOTEBOOK_NAME = "DIMER_Document_QA_LayoutLM_vs_Pix2Struct_Workshop.ipynb"
+CAPSTONE_NOTEBOOK_NAME = "DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb"
 EXPECTED_PROFILE = "E2E"
 EXPECTED_MODEL_ID = "impira/layoutlm-document-qa"
 PIPELINE_CLASS = "LayoutLMDocumentQAPipeline"
 MODEL_LOAD_EXPR = f"{PIPELINE_CLASS}.from_pretrained(weights_dir=WEIGHTS_DIR)"
 KNOWN_SHAS: frozenset[str] = frozenset(
-    ("7f0115a4b758a71d6473b8d085751692da2fef98",)  # the pinned CORD-v2 dataset revision, cited beside the model revision
+    (
+        "7f0115a4b758a71d6473b8d085751692da2fef98",
+    )  # the pinned CORD-v2 dataset revision, cited beside the model revision
 )
 BYOD_GATES = ("USE_BYOD",)
 EXPECTED_OUTPUTS = (
@@ -400,18 +404,29 @@ def validate_weight_facts(root: Path = ROOT) -> None:
             continue
         text = _read(path)
         found_digests = set(_DIGEST.findall(text))
-        found_sizes = {int(re.sub(r"[,\u202f\u00a0 ]", "", m.group(1) or m.group(2))) for m in _BYTE_COUNT.finditer(text)}
+        found_sizes = {
+            int(re.sub(r"[,\u202f\u00a0 ]", "", m.group(1) or m.group(2))) for m in _BYTE_COUNT.finditer(text)
+        }
         cited_digests |= found_digests
         cited_sizes |= found_sizes
         bad_digests = sorted(found_digests - digests - set(EXTERNAL_WEIGHT_DIGESTS))
-        _check(not bad_digests, f"{name} cites SHA-256 digests absent from every manifest and from EXTERNAL_WEIGHT_DIGESTS: {bad_digests}")
+        _check(
+            not bad_digests,
+            f"{name} cites SHA-256 digests absent from every manifest and from EXTERNAL_WEIGHT_DIGESTS: {bad_digests}",
+        )
         bad_sizes = sorted(found_sizes - sizes - set(EXTERNAL_WEIGHT_BYTES))
-        _check(not bad_sizes, f"{name} cites byte counts absent from every manifest and from EXTERNAL_WEIGHT_BYTES: {bad_sizes}")
-    stale = sorted(set(EXTERNAL_WEIGHT_BYTES) - cited_sizes) + sorted(set(EXTERNAL_WEIGHT_DIGESTS) - cited_digests)
+        _check(
+            not bad_sizes,
+            f"{name} cites byte counts absent from every manifest and from EXTERNAL_WEIGHT_BYTES: {bad_sizes}",
+        )
+    stale = sorted(set(EXTERNAL_WEIGHT_BYTES) - cited_sizes) + sorted(
+        set(EXTERNAL_WEIGHT_DIGESTS) - cited_digests
+    )
     _check(not stale, f"EXTERNAL_WEIGHT_* entries no weight document cites any more: {stale}")
 
 
 # --- end weight-facts check ---
+
 
 def validate_release_status() -> None:
     """STATUS.md, README.md and tutorials/README.md must agree on the primary notebook status."""
@@ -427,7 +442,9 @@ def validate_release_status() -> None:
     # The primary tutorial carries the repository-wide status. Supplemental workshops may trail it
     # (Candidate while the primary tutorial is Release-grade) but may never lead a Candidate repository.
     rows = {
-        name: next((line for line in registry.splitlines() if line.startswith("| " + chr(96) + name + chr(96))), None)
+        name: next(
+            (line for line in registry.splitlines() if line.startswith("| " + chr(96) + name + chr(96))), None
+        )
         for name in (NOTEBOOK_NAME, WORKSHOP_NOTEBOOK_NAME)
     }
     primary = rows[NOTEBOOK_NAME]
@@ -436,11 +453,17 @@ def validate_release_status() -> None:
     other = [t for t in STATUS_TOKENS if t != token]
     for stale in other:
         _check(f"| {stale}" not in section.replace("**", ""), "README.md carries a conflicting status token")
-        _check(f"| {stale}" not in primary, f"tutorials/README.md gives {NOTEBOOK_NAME} a conflicting status token")
+        _check(
+            f"| {stale}" not in primary,
+            f"tutorials/README.md gives {NOTEBOOK_NAME} a conflicting status token",
+        )
     workshop = rows[WORKSHOP_NOTEBOOK_NAME]
     _check(workshop is not None, f"tutorials/README.md must have a table row for {WORKSHOP_NOTEBOOK_NAME}")
     workshop_tokens = [t for t in STATUS_TOKENS if f"| {t}" in workshop]
-    _check(len(workshop_tokens) == 1, f"tutorials/README.md must give {WORKSHOP_NOTEBOOK_NAME} exactly one status token")
+    _check(
+        len(workshop_tokens) == 1,
+        f"tutorials/README.md must give {WORKSHOP_NOTEBOOK_NAME} exactly one status token",
+    )
     _check(
         not (token == "Candidate" and workshop_tokens == ["Release-grade"]),
         f"{WORKSHOP_NOTEBOOK_NAME} cannot be Release-grade while the repository is Candidate",
@@ -460,6 +483,7 @@ def validate_release_status() -> None:
         "docs/release-verification.md must have '## Recorded executions'",
     )
 
+
 def _validate_notebook_structure(path: Path, notebook: dict) -> tuple[list[tuple[int, str, ast.Module]], str]:
     _check(notebook.get("nbformat") == 4, f"{path.name}: nbformat must be 4")
     dimer = notebook.get("metadata", {}).get("dimer")
@@ -468,19 +492,31 @@ def _validate_notebook_structure(path: Path, notebook: dict) -> tuple[list[tuple
     _check(profile in ALLOWED_PROFILES, f"{path.name}: invalid metadata.dimer.notebook_profile {profile!r}")
     _check(profile == EXPECTED_PROFILE, f"{path.name}: profile {profile!r} != declared {EXPECTED_PROFILE!r}")
     spec = dimer.get("notebook_spec", dimer.get("notebook_spec_version"))
-    _check(spec == NOTEBOOK_SPEC, f"{path.name}: metadata.dimer must declare notebook spec version '{NOTEBOOK_SPEC}'")
-    _check(dimer.get("notebook_mode") in ("REFERENCE", "GUIDED", "WORKSHOP"), f"{path.name}: metadata.dimer.notebook_mode must declare a §3.3 pedagogical mode")
+    _check(
+        spec == NOTEBOOK_SPEC,
+        f"{path.name}: metadata.dimer must declare notebook spec version '{NOTEBOOK_SPEC}'",
+    )
+    _check(
+        dimer.get("notebook_mode") in ("REFERENCE", "GUIDED", "WORKSHOP"),
+        f"{path.name}: metadata.dimer.notebook_mode must declare a §3.3 pedagogical mode",
+    )
     _check(dimer.get("standalone") is True, f"{path.name}: metadata.dimer.standalone must be true (ST6)")
     generated = dimer.get("generated_from")
     _template = _load_tool("notebook_template").TEMPLATE
     _check(isinstance(generated, dict), f"{path.name}: metadata.dimer.generated_from is required (ST5)")
-    _check(generated.get("repository") == REPO_NAME, f"{path.name}: generated_from.repository must be {REPO_NAME}")
     _check(
-        generated.get("module") == f"{_template.get('package_dir', f'src/{PACKAGE}')}/{_template.get('entry_module', 'pipeline.py')}",
+        generated.get("repository") == REPO_NAME,
+        f"{path.name}: generated_from.repository must be {REPO_NAME}",
+    )
+    _check(
+        generated.get("module")
+        == f"{_template.get('package_dir', f'src/{PACKAGE}')}/{_template.get('entry_module', 'pipeline.py')}",
         f"{path.name}: generated_from.module must name the template entry module",
     )
     _pkg_dir = ROOT / _template.get("package_dir", f"src/{PACKAGE}")
-    _order = _load_tool("build_notebook")._module_order(_pkg_dir, list(_template.get("modules", ["pipeline.py"])))
+    _order = _load_tool("build_notebook")._module_order(
+        _pkg_dir, list(_template.get("modules", ["pipeline.py"]))
+    )
     module_sha = hashlib.sha256("".join(_read(_pkg_dir / m) for m in _order).encode("utf-8")).hexdigest()
     _check(
         generated.get("module_sha256") == module_sha,
@@ -558,7 +594,8 @@ def _validate_embedded_modules(path: Path, notebook: dict, build) -> list[int]:
     tagged = [
         (index, cell)
         for index, cell in enumerate(notebook.get("cells", []))
-        if cell.get("cell_type") == "code" and cell.get("metadata", {}).get("dimer", {}).get("embedded_module")
+        if cell.get("cell_type") == "code"
+        and cell.get("metadata", {}).get("dimer", {}).get("embedded_module")
     ]
     template = _load_tool("notebook_template").TEMPLATE
     recorded = notebook["metadata"]["dimer"]["generated_from"]["revision"]
@@ -568,9 +605,7 @@ def _validate_embedded_modules(path: Path, notebook: dict, build) -> list[int]:
         [cell["metadata"]["dimer"]["embedded_module"] for _, cell in tagged] == expected_rels,
         f"{path.name}: the cells tagged metadata.dimer.embedded_module must be exactly {expected_rels}, in order (ST2)",
     )
-    for (index, cell), module, rel in zip(
-        tagged, context["modules"], context["module_rels"], strict=True
-    ):
+    for (index, cell), module, rel in zip(tagged, context["modules"], context["module_rels"], strict=True):
         _check(
             cell["metadata"]["dimer"].get("module_sha256") == context["per_module_sha256"][rel],
             f"{path.name}: cell {index} module_sha256 tag does not match {rel}",
@@ -591,7 +626,10 @@ def _validate_identity(
             continue
         for node in ast.walk(tree):
             rebound = [name for name in _assignment_targets(node) if name in IDENTITY_NAMES]
-            _check(not rebound, f"{path.name}: {rebound} must not be rebound outside the module cell (cell {index})")
+            _check(
+                not rebound,
+                f"{path.name}: {rebound} must not be rebound outside the module cell (cell {index})",
+            )
     outside = "\n".join(source for index, source, _ in code_cells if index not in embedded)
     manifest_block = re.search(r"^MANIFEST = (\{.*?^\})$", outside, re.M | re.S)
     _check(manifest_block is not None, f"{path.name}: model cell must carry an inline MANIFEST literal (ST3)")
@@ -602,20 +640,30 @@ def _validate_identity(
     )
 
 
-def _validate_parity(path: Path, notebook: dict, code_cells: list[tuple[int, str, ast.Module]], build) -> None:
+def _validate_parity(
+    path: Path, notebook: dict, code_cells: list[tuple[int, str, ast.Module]], build
+) -> None:
     """PAR2/PAR3: inline manifest and pins equal the repository's; the generator reproduces the file."""
     template = _load_tool("notebook_template").TEMPLATE
     code = "\n".join(source for _, source, _ in code_cells)
     manifest = json.loads(_read(ROOT / "weights" / template["weights_key"] / "dimer-base-manifest.json"))
     inline = re.search(r"^MANIFEST = (\{.*?^\})$", code, re.M | re.S)
-    _check(inline is not None and json.loads(inline.group(1)) == manifest, f"{path.name}: inline MANIFEST != committed manifest (PAR2)")
+    _check(
+        inline is not None and json.loads(inline.group(1)) == manifest,
+        f"{path.name}: inline MANIFEST != committed manifest (PAR2)",
+    )
     pins_block = re.search(r"^PINS = \[(.*?)^\]", code, re.M | re.S)
     _check(pins_block is not None, f"{path.name}: install cell must carry PINS = [...] (ENV2)")
-    _check(re.findall(r"'([^']+)'", pins_block.group(1)) == build._pins(ROOT), f"{path.name}: inline PINS != pyproject runtime pins (PAR2)")
+    _check(
+        re.findall(r"'([^']+)'", pins_block.group(1)) == build._pins(ROOT),
+        f"{path.name}: inline PINS != pyproject runtime pins (PAR2)",
+    )
     recorded = notebook["metadata"]["dimer"]["generated_from"]["revision"]
     rendered = build.to_bytes(build.render(ROOT, template, recorded))
     current = path.read_bytes().replace(b"\r\n", b"\n")  # autocrlf checkouts are CRLF
-    _check(current == rendered, f"{path.name}: differs from tools/build_notebook.py output (PAR3); regenerate")
+    _check(
+        current == rendered, f"{path.name}: differs from tools/build_notebook.py output (PAR3); regenerate"
+    )
 
 
 def _validate_bootstrap_guard(path: Path, code_cells: list[tuple[int, str, ast.Module]]) -> None:
@@ -663,7 +711,7 @@ def validate_notebooks() -> None:
     tutorials = ROOT / "tutorials"
     notebooks = sorted(tutorials.glob("*.ipynb"))
     notebook_names = {path.name for path in notebooks}
-    expected_names = {NOTEBOOK_NAME, WORKSHOP_NOTEBOOK_NAME}
+    expected_names = {NOTEBOOK_NAME, WORKSHOP_NOTEBOOK_NAME, CAPSTONE_NOTEBOOK_NAME}
     _check(
         notebook_names == expected_names,
         f"tutorial notebooks must be exactly {sorted(expected_names)}, found {sorted(notebook_names)}",
@@ -686,12 +734,36 @@ def validate_notebooks() -> None:
         f"{tick}{WORKSHOP_NOTEBOOK_NAME}{tick}" in registry,
         f"{WORKSHOP_NOTEBOOK_NAME} missing from tutorials/README.md",
     )
-    _check(f"{tick}{EXPECTED_PROFILE}{tick}" in registry, f"tutorials/README.md must record {tick}{EXPECTED_PROFILE}{tick}")
+    _check(
+        f"{tick}{EXPECTED_PROFILE}{tick}" in registry,
+        f"tutorials/README.md must record {tick}{EXPECTED_PROFILE}{tick}",
+    )
     _check(
         f"DIMER Notebook Specification {NOTEBOOK_SPEC}" in registry,
         "tutorials/README.md must name the primary notebook spec version",
     )
-    _check("standalone" in registry.lower(), "tutorials/README.md must record that the notebooks are standalone")
+    _check(
+        "standalone" in registry.lower(), "tutorials/README.md must record that the notebooks are standalone"
+    )
+    _validate_capstone(tutorials, registry)
+
+
+def _validate_capstone(tutorials: Path, registry: str) -> None:
+    """Receipt capstone: registered as Candidate, generator parity, and its governing documents present."""
+    tick = chr(96)
+    row = next((line for line in registry.replace("**", "").splitlines()
+                if line.startswith("| " + tick + CAPSTONE_NOTEBOOK_NAME + tick)), None)
+    _check(row is not None, f"tutorials/README.md must have a table row for {CAPSTONE_NOTEBOOK_NAME}")
+    _check("| Candidate" in row and "| Release-grade" not in row,
+           f"{CAPSTONE_NOTEBOOK_NAME} must stay Candidate until hosted qualification is recorded")
+    build = _load_tool("build_receipt_capstone")
+    content = json.dumps(build.build(), indent=1, ensure_ascii=False) + "\n"
+    _check(_read(tutorials / CAPSTONE_NOTEBOOK_NAME) == content,
+           f"{CAPSTONE_NOTEBOOK_NAME} differs from tools/build_receipt_capstone.py output")
+    for name in ("docs/receipt-capstone-spec.md", "docs/receipt-capstone.md", "docs/receipt-annotation-audit.md",
+                 "docs/receipt-release-evidence.md"):
+        _check((ROOT / name).is_file(), f"{name} is required for the receipt capstone")
+
 
 def validate_all() -> list[str]:
     validate_model_card()
