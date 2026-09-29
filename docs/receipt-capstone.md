@@ -2,7 +2,7 @@
 
 **Notebook:** `tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb` (revision `0.1.0-candidate`)
 **Specification:** [`receipt-capstone-spec.md`](receipt-capstone-spec.md) (v1.0, unchanged) · **Profile / mode:** `E2E` / `GUIDED`, Notebook Specification 2.2
-**Status:** built, source-checked and CPU-tested with labelled test doubles. The default journey was hosted-executed on a clean-runtime Kaggle T4 at `fc553d4` on 2026-09-29. BYOD journeys are not yet run, and the notebook is **not** annotation-reviewed or release-qualified. See [`receipt-release-evidence.md`](receipt-release-evidence.md).
+**Status:** built, source-checked and CPU-tested with labelled test doubles. The default journey was hosted-executed on a clean-runtime Kaggle T4 at `78ef7c3` on 2026-09-29. The BYOD journeys failed there (R6) and await a re-run, and the notebook is **not** annotation-reviewed or release-qualified. See [`receipt-release-evidence.md`](receipt-release-evidence.md).
 
 ## Source layout
 

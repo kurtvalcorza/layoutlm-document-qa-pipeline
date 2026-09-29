@@ -8,7 +8,7 @@ Each state is reported separately. A green CI run or a local CPU chain is not ho
 | built | done | Generated notebook `tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb`, revision `0.1.0-candidate`, from `tools/build_receipt_capstone.py` |
 | source-checked | done (local) | `ruff check src tests tools`; `python tools/build_receipt_capstone.py --check`; `python tools/validate_release_assets.py`; see the build record below |
 | CPU-tested | done (local, test doubles) | Full `pytest`, including the stage chain on synthetic receipts. The chain uses recorded OCR tokens and a tiny random LayoutLM, then is repeated once with a local Tesseract 5.5.0 build. These are mechanics checks only |
-| hosted-executed | **default journey done** (`fc553d4`) | Kaggle Tesla T4 clean-runtime Run all of the exact PR head, 2026-09-29: 17/17 code cells, 941.8 s. See *Recorded executions*. BYOD inference, BYOD adapt and the refused-ZIP case are **not yet run** |
+| hosted-executed | **default journey done** (`78ef7c3`); **BYOD failed** | Kaggle Tesla T4 clean-runtime Run all, 2026-09-29: default 17/17 code cells at `78ef7c3` (PSM 6). BYOD inference and adapt both failed at `78ef7c3` in the BYOD `ocr` stage (OCR cache returned another receipt's id). The refused-ZIP check never ran. See *Recorded executions* |
 | annotation-reviewed | **not started** | [`receipt-annotation-audit.md`](receipt-annotation-audit.md): no human audit performed |
 | release-qualified | **no** | Needs the hosted run, a BYOD positive run and a BYOD negative case, measured resources, and the annotation audit |
 | published / merged | **no** | Draft PR only; no merge authority implied |
@@ -42,7 +42,10 @@ Record each executed notebook, pass or fail, under `docs/execution-evidence/<dat
 
 | Date | Revision / notebook blob | Runtime | Journeys | Wall | Result |
 | --- | --- | --- | --- | --- | --- |
-| 2026-09-29 | `fc553d4` / `e54dd1e7` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-small-business-receipt-intelligence-caps` v1) | default + change-one-thing activity (0.90) | 941.8 s | **PASSED** (execution): 17/17 code cells ok; findings R1–R5 below |
+| 2026-09-29 | `fc553d4` / `e54dd1e7` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-small-business-receipt-intelligence-caps` v1) | default + change-one-thing activity (0.90) | 941.8 s | **PASSED** (execution): 17/17 code cells ok; findings R1–R5 below; superseded by `78ef7c3` |
+| 2026-09-29 | `78ef7c3` / `18cfc43b` | Kaggle Tesla T4 (same kernel, v2) | default + change-one-thing activity (0.90) | 1077.4 s | **PASSED** (execution): 17/17 code cells ok; R2 and R5 fixed; R1 persists (structural) |
+| 2026-09-29 | `78ef7c3` / `18cfc43b` | Kaggle Tesla T4 (same kernel, v3) | BYOD inference (12 CORD stand-ins) + refused ZIP | — | **FAILED** at `code-40`, the BYOD `ocr` stage: `KeyError: 'cord-v2:test:0000'` (R6). The refused-ZIP harness cell did not run |
+| 2026-09-29 | `78ef7c3` / `18cfc43b` | Kaggle Tesla T4 (same kernel, v4) | BYOD adapt (133 CORD stand-ins) | — | **FAILED** at `code-40`, the BYOD `ocr` stage: `KeyError: 'cord-v2:test:0001'` (R6) |
 
 ### Kaggle T4 clean-runtime execution of revision `fc553d4` — 2026-09-29
 
@@ -85,3 +88,40 @@ Record each executed notebook, pass or fail, under `docs/execution-evidence/<dat
 - **R5 (cosmetic).** The activity cell prints `Running None in a separate process` because the stage label is missing. *Disposition:* fixed. `run_stage` now prints the option-derived label it already used for the log name.
 
 **Still open before promotion.** BYOD inference, BYOD adapt and one refused ZIP; dispositions of R1–R5; the annotation audit; and a human decision on promotion. Status stays **Candidate**.
+
+### Kaggle T4 clean-runtime executions of revision `78ef7c3` — 2026-09-29
+
+**Default journey (kernel v2): PASSED.** [`execution-evidence/2026-09-29/receipt_capstone_78ef7c3_kaggle-t4.ipynb`](execution-evidence/2026-09-29/receipt_capstone_78ef7c3_kaggle-t4.ipynb), SHA-256 `8bccc5c7f9ea03906175a9756021a9916f123bd5a0194880759d4d7f537d40d2`; run summary SHA-256 `dbac31b1f18cd9ee132e6a35cab6fe6b7dfd97ee2ca73f47a7290c5e6493ad5e`.
+- **Source match.** Blob `18cfc43bb17cb62b6dd7bb436a9f0206cce8e662` was verified before execution. The executed source is identical to the PR head (42/42 cells, no toggle diffs), and execution counts run 1..17. The runtime is the same Kaggle image and T4 as the `fc553d4` run.
+- **Compared with `fc553d4` (PSM 4 → 6):**
+
+  | Measure | `fc553d4` (PSM 4) | `78ef7c3` (PSM 6) |
+  | --- | --- | --- |
+  | `ocr_empty` (all roles) | 205 / 998 | 22 / 998 |
+  | median words per receipt | 13–15 | 27–29 |
+  | OCR time | 390 s | 536 s |
+  | aligned training examples (receipts) | 432 (257) | 636 (378) |
+  | selected epoch; validation_model total EM by epoch | 1; 0.265 / 0.245 / 0.265 / 0.265 | 3; 0.347 / 0.367 / 0.408 / 0.408 |
+  | test total EM rules / frozen / adapted | 0.181 / 0.213 / 0.234 | 0.298 / 0.372 / 0.372 |
+  | adapted − frozen, 95% paired interval | 0.021 [−0.032, 0.085] | 0.000 [−0.053, 0.053] |
+  | test totals recoverable from OCR | 27.7% | 38.3% |
+  | review policy (0.95 and activity 0.90) | refer-all for every system | refer-all for every system |
+
+- Selection record `c4ca8bbc632df673`, adapter SHA-256 `da69be11…`, replay `all_parity: 1.0`. Peak GPU allocation 2.15 GiB (train); peak RSS 3.29 GiB (prepare).
+- **R5 confirmed fixed.** The activity cell prints `Running activity-target in a separate process`.
+- **R1 is structural.** `receipt_policy.DEFAULT_TARGETS` requires coverage ≥ 0.50, accuracy ≥ the target, and at least 25 accepted. With validation total EM of about 0.41, accuracy at 50% coverage cannot exceed about 0.82, even with perfect ranking. Refer-all therefore follows at any accuracy target ≥ 0.82, and an activity that changes only the accuracy target cannot show a contrast on CORD. This is a design decision for the maintainer.
+
+**BYOD journeys (kernels v3 and v4): FAILED, recorded as evidence.**
+- **Harness.** [`patch_byod.py`](execution-evidence/2026-09-29/patch_byod.py) patches the executor preamble. It still downloads the committed bytes and asserts the blob. It then stages the archives from the private Kaggle dataset `kurtvalcorza/dimer-receipt-byod-standins`; they are stored as `.bin` because Kaggle unpacks `.zip`. Finally it replaces only the `code-02` form toggles (`USE_BYOD`, `BYOD_MODE`, `BYOD_PATH`, `BYOD_AUTHORIZED`), each guarded by the SHA-256 of the committed cell. The applied diffs are in `…_harness-diff.txt`. For B1 it also appends one harness cell that re-executes `code-40`'s committed source against a path-traversal ZIP. The executor also saved the committed bytes, which are identical to the PR-head notebook.
+- **Data.** CORD v2 receipts (CC BY 4.0) repackaged as `org.dimer.receipt-byod.v1` stand-ins by [`build_byod_standins.py`](execution-evidence/2026-09-29/build_byod_standins.py). They are **not independent data**. Inference uses 12 test-shard receipts. Adapt uses 133 validation and test receipts whose total is expressible under `dot_decimal_comma_grouping`, split 68 / 20 / 20 / 25 with one group per receipt. Fields not expressible under that policy are left `not_annotated`. Before upload, the notebook's own `prepare_byod` accepted both archives and refused the third with `Unsafe archive path: '../escape.png'`.
+- **Files.** `receipt_capstone_78ef7c3_byod-inference_FAILED.ipynb` (SHA-256 `268e8a17…`) and `receipt_capstone_78ef7c3_byod-adapt_FAILED.ipynb` (SHA-256 `6e653ce2…`), each with its run summary and harness diff.
+- **Result.** Cells 1–37 passed in both runs, reproducing the canonical path. `code-40` failed in the BYOD `ocr` stage (`stage_ocr`, `roles[r["receipt_id"]]`): `KeyError: 'cord-v2:test:0000'` for inference and `'cord-v2:test:0001'` for adapt.
+- **R6 (major, BYOD).** `receipt_ocr.run_cohort` returns a cached OCR row as stored, including the `receipt_id` of the receipt that first wrote it. The cache key is pixel content plus OCR identity, and the BYOD run shares the canonical cache (`cache_dir`). A BYOD image whose pixels match an earlier receipt therefore comes back under the wrong id. That covers a re-upload under a new id, or these stand-ins, which are pixel-identical to CORD receipts. The stage then fails. *Fixed in the next commit:* a cache hit now takes `receipt_id` from the current record.
+
+| Journey at `78ef7c3` | Verdict |
+| --- | --- |
+| Default Run all | **PASS** |
+| Change-one-thing activity | **PASS (mechanics)**; no contrast (R1, structural) |
+| BYOD inference | **FAIL** (R6) |
+| BYOD adapt | **FAIL** (R6) |
+| Refused ZIP | not assessed; the preceding BYOD cell failed first |

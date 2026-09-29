@@ -1,0 +1,199 @@
+{
+ "identity": {
+  "repository": "layoutlm-document-qa-pipeline",
+  "candidate_sha": "78ef7c3d414413932ee82f3b25985c0f015f5309",
+  "notebook": "tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb",
+  "committed_blob": "18cfc43bb17cb62b6dd7bb436a9f0206cce8e662",
+  "fetched_blob_verified": true,
+  "kaggle_docker_image": "gcr.io/kaggle-gpu-images/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "kaggle_run_type": "Batch",
+  "os": "Linux-6.12.90+-x86_64-with-glibc2.35",
+  "python": "3.12.13",
+  "cpu_count": 4,
+  "image_versions_before_run": {
+   "torch": "2.10.0+cu128",
+   "numpy": "2.0.2",
+   "transformers": "5.0.0",
+   "tokenizers": "0.22.2",
+   "safetensors": "0.7.0",
+   "huggingface-hub": "1.11.0",
+   "pillow": "11.3.0",
+   "nbclient": "0.10.2",
+   "ipykernel": "6.17.1"
+  },
+  "started": "2026-09-29T06:56:19Z",
+  "nvidia_smi": "Tesla T4, 15360 MiB, 580.159.04\nTesla T4, 15360 MiB, 580.159.04",
+  "hf_cache_clean_at_start": true
+ },
+ "runner": {
+  "ok": false,
+  "started": "2026-09-29T06:56:21Z",
+  "passes": [
+   {
+    "attempt": 1,
+    "started": "2026-09-29T06:56:21Z",
+    "ok": false,
+    "error": "CellExecutionError: ceipt_id\"]] == role]\n----- stdout -----\n                                ~~~~~^^^^^^^^^^^^^^^^^\n----- stdout -----\nKeyError: 'cord-v2:test:0000'\n----- stdout -----\nTraceback (most recent call last):\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1925, in <module>\n    main()\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1921, in main\n    run_stage(args.root, args.stage)\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1888, in run_stage\n    STAGES[stage](run, out)\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 541, in stage_ocr\n    items = [r for r in rows if roles[r[\"receipt_id\"]] == role]\n                                ~~~~~^^^^^^^^^^^^^^^^^\nKeyError: 'cord-v2:test:0000'\n------------------\n\n\u001b[0;31m---------------------------------------------------------------------------\u001b[0m\n\u001b[0;31mRuntimeError\u001b[0m                              Traceback (most recent call last)\n\u001b[0;32m/tmp/ipykernel_53/310745961.py\u001b[0m in \u001b[0;36m<cell line: 0>\u001b[0;34m()\u001b[0m\n\u001b[1;32m     32\u001b[0m     \u001b[0;34m(\u001b[0m\u001b[0mbyod_root\u001b[0m \u001b[0;34m/\u001b[0m \u001b[0;34m'run_config.json'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mwrite_text\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mjson\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdumps\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mconfig\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mencoding\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m'utf-8'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     33\u001b[0m     \u001b[0;32mfor\u001b[0m \u001b[0mstage\u001b[0m \u001b[0;32min\u001b[0m \u001b[0mstages\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 34\u001b[0;31m         \u001b[0mrun_stage\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mstage\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mroot\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mbyod_root\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     35\u001b[0m     \u001b[0;32mif\u001b[0m \u001b[0mBYOD_MODE\u001b[0m \u001b[0;34m==\u001b[0m \u001b[0;34m'inference'\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     36\u001b[0m         \u001b[0mshow_table\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m'byod_records.csv'\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mroot\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mbyod_root\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mlimit\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m20\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\n\u001b[0;32m/tmp/ipykernel_53/2352742804.py\u001b[0m in \u001b[0;36mrun_stage\u001b[0;34m(stage, root, *options)\u001b[0m\n\u001b[1;32m     52\u001b[0m     \u001b[0;32mif\u001b[0m \u001b[0mprocess\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mreturncode\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     53\u001b[0m         \u001b[0mprint\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mlog\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mread_text\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mencoding\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m'utf-8'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;34m-\u001b[0m\u001b[0;36m7000\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 54\u001b[0;31m         \u001b[0;32mraise\u001b[0m \u001b[0mRuntimeError\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34mf'{stage} failed with exit {process.returncode}. Preserve the diagnostics; do not weaken checks.'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     55\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     56\u001b[0m \u001b[0;32mimport\u001b[0m \u001b[0mcsv\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\n\u001b[0;31mRuntimeError\u001b[0m: ocr failed with exit 1. Preserve the diagnostics; do not weaken checks.\n",
+    "wall_s": 1009.3
+   }
+  ],
+  "error": "CellExecutionError: ceipt_id\"]] == role]\n----- stdout -----\n                                ~~~~~^^^^^^^^^^^^^^^^^\n----- stdout -----\nKeyError: 'cord-v2:test:0000'\n----- stdout -----\nTraceback (most recent call last):\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1925, in <module>\n    main()\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1921, in main\n    run_stage(args.root, args.stage)\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1888, in run_stage\n    STAGES[stage](run, out)\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 541, in stage_ocr\n    items = [r for r in rows if roles[r[\"receipt_id\"]] == role]\n                                ~~~~~^^^^^^^^^^^^^^^^^\nKeyError: 'cord-v2:test:0000'\n------------------\n\n\u001b[0;31m---------------------------------------------------------------------------\u001b[0m\n\u001b[0;31mRuntimeError\u001b[0m                              Traceback (most recent call last)\n\u001b[0;32m/tmp/ipykernel_53/310745961.py\u001b[0m in \u001b[0;36m<cell line: 0>\u001b[0;34m()\u001b[0m\n\u001b[1;32m     32\u001b[0m     \u001b[0;34m(\u001b[0m\u001b[0mbyod_root\u001b[0m \u001b[0;34m/\u001b[0m \u001b[0;34m'run_config.json'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mwrite_text\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mjson\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdumps\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mconfig\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mencoding\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m'utf-8'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     33\u001b[0m     \u001b[0;32mfor\u001b[0m \u001b[0mstage\u001b[0m \u001b[0;32min\u001b[0m \u001b[0mstages\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 34\u001b[0;31m         \u001b[0mrun_stage\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mstage\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mroot\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mbyod_root\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     35\u001b[0m     \u001b[0;32mif\u001b[0m \u001b[0mBYOD_MODE\u001b[0m \u001b[0;34m==\u001b[0m \u001b[0;34m'inference'\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     36\u001b[0m         \u001b[0mshow_table\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m'byod_records.csv'\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mroot\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mbyod_root\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mlimit\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m20\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\n\u001b[0;32m/tmp/ipykernel_53/2352742804.py\u001b[0m in \u001b[0;36mrun_stage\u001b[0;34m(stage, root, *options)\u001b[0m\n\u001b[1;32m     52\u001b[0m     \u001b[0;32mif\u001b[0m \u001b[0mprocess\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mreturncode\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     53\u001b[0m         \u001b[0mprint\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mlog\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mread_text\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mencoding\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m'utf-8'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;34m-\u001b[0m\u001b[0;36m7000\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 54\u001b[0;31m         \u001b[0;32mraise\u001b[0m \u001b[0mRuntimeError\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34mf'{stage} failed with exit {process.returncode}. Preserve the diagnostics; do not weaken checks.'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     55\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     56\u001b[0m \u001b[0;32mimport\u001b[0m \u001b[0mcsv\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\n\u001b[0;31mRuntimeError\u001b[0m: ocr failed with exit 1. Preserve the diagnostics; do not weaken checks.\n",
+  "traceback": "stone_outputs/c272cec0a64b-byod-17b788/model.log\n----- stdout -----\nBase checkpoint verified: impira/layoutlm-document-qa@beed3c4d02d8\n----- stdout -----\nRunning ocr in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/ocr.log\n----- stdout -----\nTraceback (most recent call last):\n----- stdout -----\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1925, in <module>\n----- stdout -----\n    main()\n----- stdout -----\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1921, in main\n----- stdout -----\n    run_stage(args.root, args.stage)\n----- stdout -----\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1888, in run_stage\n----- stdout -----\n    STAGES[stage](run, out)\n----- stdout -----\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 541, in stage_ocr\n----- stdout -----\n    items = [r for r in rows if roles[r[\"receipt_id\"]] == role]\n----- stdout -----\n                                ~~~~~^^^^^^^^^^^^^^^^^\n----- stdout -----\nKeyError: 'cord-v2:test:0000'\n----- stdout -----\nTraceback (most recent call last):\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1925, in <module>\n    main()\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1921, in main\n    run_stage(args.root, args.stage)\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1888, in run_stage\n    STAGES[stage](run, out)\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 541, in stage_ocr\n    items = [r for r in rows if roles[r[\"receipt_id\"]] == role]\n                                ~~~~~^^^^^^^^^^^^^^^^^\nKeyError: 'cord-v2:test:0000'\n------------------\n\n\u001b[0;31m---------------------------------------------------------------------------\u001b[0m\n\u001b[0;31mRuntimeError\u001b[0m                              Traceback (most recent call last)\n\u001b[0;32m/tmp/ipykernel_53/310745961.py\u001b[0m in \u001b[0;36m<cell line: 0>\u001b[0;34m()\u001b[0m\n\u001b[1;32m     32\u001b[0m     \u001b[0;34m(\u001b[0m\u001b[0mbyod_root\u001b[0m \u001b[0;34m/\u001b[0m \u001b[0;34m'run_config.json'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mwrite_text\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mjson\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdumps\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mconfig\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mencoding\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m'utf-8'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     33\u001b[0m     \u001b[0;32mfor\u001b[0m \u001b[0mstage\u001b[0m \u001b[0;32min\u001b[0m \u001b[0mstages\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 34\u001b[0;31m         \u001b[0mrun_stage\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mstage\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mroot\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mbyod_root\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     35\u001b[0m     \u001b[0;32mif\u001b[0m \u001b[0mBYOD_MODE\u001b[0m \u001b[0;34m==\u001b[0m \u001b[0;34m'inference'\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     36\u001b[0m         \u001b[0mshow_table\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m'byod_records.csv'\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mroot\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mbyod_root\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mlimit\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m20\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\n\u001b[0;32m/tmp/ipykernel_53/2352742804.py\u001b[0m in \u001b[0;36mrun_stage\u001b[0;34m(stage, root, *options)\u001b[0m\n\u001b[1;32m     52\u001b[0m     \u001b[0;32mif\u001b[0m \u001b[0mprocess\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mreturncode\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     53\u001b[0m         \u001b[0mprint\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mlog\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mread_text\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mencoding\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m'utf-8'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;34m-\u001b[0m\u001b[0;36m7000\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 54\u001b[0;31m         \u001b[0;32mraise\u001b[0m \u001b[0mRuntimeError\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34mf'{stage} failed with exit {process.returncode}. Preserve the diagnostics; do not weaken checks.'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     55\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     56\u001b[0m \u001b[0;32mimport\u001b[0m \u001b[0mcsv\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\n\u001b[0;31mRuntimeError\u001b[0m: ocr failed with exit 1. Preserve the diagnostics; do not weaken checks.\n\n",
+  "wall_s": 1009.4,
+  "finished": "2026-09-29T07:13:10Z"
+ },
+ "cells": [
+  {
+   "cell": 2,
+   "status": "ok",
+   "started": "2026-09-29T06:56:22.731579Z",
+   "ended": "2026-09-29T06:56:22.738128Z",
+   "stdout_tail": "Controls set. BYOD is on\n",
+   "error": null
+  },
+  {
+   "cell": 4,
+   "status": "ok",
+   "started": "2026-09-29T06:56:22.741273Z",
+   "ended": "2026-09-29T06:56:22.784834Z",
+   "stdout_tail": "Device: Tesla T4\nTesla T4 | CPUs: 4\nRun directory: /content/receipt_capstone_outputs/c272cec0a64b\n",
+   "error": null
+  },
+  {
+   "cell": 5,
+   "status": "ok",
+   "started": "2026-09-29T06:56:22.825318Z",
+   "ended": "2026-09-29T06:56:23.252622Z",
+   "stdout_tail": "Embedded implementation verified: 19 files, notebook revision 0.1.0-candidate.\n",
+   "error": null
+  },
+  {
+   "cell": 6,
+   "status": "ok",
+   "started": "2026-09-29T06:56:23.256618Z",
+   "ended": "2026-09-29T06:57:23.399505Z",
+   "stdout_tail": "oaded nvidia-nccl-cu12\n Downloaded nvidia-cublas-cu12\n Downloaded nvidia-cudnn-cu12\n Downloaded torch\nPrepared 52 packages in 47.97s\nInstalled 52 packages in 2.51s\n + certifi==2026.7.22\n + charset-normalizer==3.5.1\n + contourpy==1.4.0\n + cycler==0.12.1\n + filelock==4.0.5\n + fonttools==4.66.0\n + fsspec==2026.9.0\n + hf-xet==1.6.0\n + huggingface-hub==0.36.0\n + idna==3.20\n + jinja2==3.1.6\n + kiwisolver==1.5.1\n + markupsafe==3.0.3\n + matplotlib==3.10.6\n + mpmath==1.3.0\n + networkx==3.7\n + numpy==2.2.6\n + nvidia-cublas-cu12==12.8.4.1\n + nvidia-cuda-cupti-cu12==12.8.90\n + nvidia-cuda-nvrtc-cu12==12.8.93\n + nvidia-cuda-runtime-cu12==12.8.90\n + nvidia-cudnn-cu12==9.10.2.21\n + nvidia-cufft-cu12==11.3.3.83\n + nvidia-cufile-cu12==1.13.1.3\n + nvidia-curand-cu12==10.3.9.90\n + nvidia-cusolver-cu12==11.7.3.90\n + nvidia-cusparse-cu12==12.5.8.93\n + nvidia-cusparselt-cu12==0.7.1\n + nvidia-nccl-cu12==2.27.5\n + nvidia-nvjitlink-cu12==12.8.93\n + nvidia-nvshmem-cu12==3.3.20\n + nvidia-nvtx-cu12==12.8.90\n + packaging==26.3\n + pillow==11.3.0\n + psutil==7.1.0\n + pyarrow==21.0.0\n + pyparsing==3.3.3\n + python-dateutil==2.9.0.post0\n + pyyaml==6.0.3\n + regex==2026.9.10\n + requests==2.34.2\n + safetensors==0.6.2\n + setuptools==80.9.0\n + six==1.17.0\n + sympy==1.14.0\n + tokenizers==0.22.2\n + torch==2.9.1\n + tqdm==4.70.1\n + transformers==4.57.6\n + triton==3.5.1\n + typing-extensions==4.16.0\n + urllib3==2.8.0\nPython 3.12.12\ntorch 2.9.1+cu128 CUDA 12.8 | transformers 4.57.6\nGPU Tesla T4\nEnvironment ready in 60 s.\n",
+   "error": null
+  },
+  {
+   "cell": 7,
+   "status": "ok",
+   "started": "2026-09-29T06:57:23.403537Z",
+   "ended": "2026-09-29T06:57:47.673480Z",
+   "stdout_tail": "Running ocr_runtime in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/ocr_runtime.log\nOCR engine: tesseract 5.5.0 (leptonica-1.83.1); languages eng+ind verified\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/ocr_runtime.json\nRunning model in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/model.log\nBase checkpoint verified: impira/layoutlm-document-qa@beed3c4d02d8\n",
+   "error": null
+  },
+  {
+   "cell": 9,
+   "status": "ok",
+   "started": "2026-09-29T06:57:47.677559Z",
+   "ended": "2026-09-29T07:00:07.045570Z",
+   "stdout_tail": "Running prepare in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/prepare.log\nFrozen cohort: {'test': 100, 'train': 798, 'validation_model': 50, 'validation_policy': 50}; nominal source counts {'test': 100, 'train': 800, 'validation': 100}; summary {'test': 100, 'train': 798, 'validation_model': 50, 'validation_policy': 50}\nRunning references in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/references.log\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/data_summary.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/reference_states.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/reference_examples.csv\n",
+   "error": null
+  },
+  {
+   "cell": 12,
+   "status": "ok",
+   "started": "2026-09-29T07:00:07.049601Z",
+   "ended": "2026-09-29T07:08:31.152989Z",
+   "stdout_tail": "Running ocr in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/ocr.log\n  OCR 50/998 receipts\n  OCR 100/998 receipts\n  OCR 150/998 receipts\n  OCR 200/998 receipts\n  OCR 250/998 receipts\n  OCR 300/998 receipts\n  OCR 350/998 receipts\n  OCR 400/998 receipts\n  OCR 450/998 receipts\n  OCR 500/998 receipts\n  OCR 550/998 receipts\n  OCR 600/998 receipts\n  OCR 650/998 receipts\n  OCR 700/998 receipts\n  OCR 750/998 receipts\n  OCR 800/998 receipts\n  OCR 850/998 receipts\n  OCR 900/998 receipts\n  OCR 950/998 receipts\nOCR finished for 998 receipts in 504 s\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/ocr_summary.csv\n<IPython.core.display.Image object><IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/ocr_tokens_example.csv\nShowing 30 of 38 rows; open the CSV for all rows.\n",
+   "error": null
+  },
+  {
+   "cell": 15,
+   "status": "ok",
+   "started": "2026-09-29T07:08:31.160350Z",
+   "ended": "2026-09-29T07:08:32.212749Z",
+   "stdout_tail": "Running keywords in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/keywords.log\nKeyword dictionary: 39 phrases from training annotations only\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/keyword_rules.csv\nShowing 30 of 39 rows; open the CSV for all rows.\nRunning rules in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/rules.log\nRule baseline predictions: 200 receipts x 4 fields\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/validation_comparison.csv\n",
+   "error": null
+  },
+  {
+   "cell": 18,
+   "status": "ok",
+   "started": "2026-09-29T07:08:32.216097Z",
+   "ended": "2026-09-29T07:09:10.800830Z",
+   "stdout_tail": "Running frozen in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/frozen.log\n  frozen LayoutLM 50/200\n  frozen LayoutLM 100/200\n  frozen LayoutLM 150/200\n  frozen LayoutLM 200/200\nFrozen LayoutLM predictions: 200 receipts in 27 s\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/validation_comparison.csv\n",
+   "error": null
+  },
+  {
+   "cell": 21,
+   "status": "ok",
+   "started": "2026-09-29T07:09:10.804297Z",
+   "ended": "2026-09-29T07:11:21.228061Z",
+   "stdout_tail": "Running train in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/train.log\nTraining on 636 aligned OCR examples from 378 receipts\nepoch 1: train loss 0.9567, validation_model total EM 0.3469387755102041\nepoch 2: train loss 0.5398, validation_model total EM 0.3673469387755102\nepoch 3: train loss 0.4750, validation_model total EM 0.40816326530612246\nepoch 4: train loss 0.3673, validation_model total EM 0.40816326530612246\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/alignment_summary.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/training_history.json\n<IPython.core.display.Image object><IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/validation_comparison.csv\n",
+   "error": null
+  },
+  {
+   "cell": 24,
+   "status": "ok",
+   "started": "2026-09-29T07:11:21.231587Z",
+   "ended": "2026-09-29T07:11:23.014982Z",
+   "stdout_tail": "Running select_policy in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/select_policy.log\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/policy_selection.csv\n<IPython.core.display.Image object>",
+   "error": null
+  },
+  {
+   "cell": 27,
+   "status": "ok",
+   "started": "2026-09-29T07:11:23.018701Z",
+   "ended": "2026-09-29T07:11:28.629823Z",
+   "stdout_tail": "Running freeze in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/freeze.log\nSelection record frozen: a6dbe37be31d60c7\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/selection_record.json\nRunning evaluate in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/evaluate.log\nHeld-out test evaluated once with the frozen selection record a6dbe37be31d60c7\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/system_comparison.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/paired_bootstrap.csv\n<IPython.core.display.Image object><IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/field_metrics.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/review_metrics.csv\n",
+   "error": null
+  },
+  {
+   "cell": 30,
+   "status": "ok",
+   "started": "2026-09-29T07:11:28.632982Z",
+   "ended": "2026-09-29T07:12:14.211505Z",
+   "stdout_tail": "Running diagnose in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/diagnose.log\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/reference_text_diagnostic.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/ocr_recoverability.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/failure_panel.csv\n<IPython.core.display.Image object><IPython.core.display.Image object><IPython.core.display.Image object><IPython.core.display.Image object><IPython.core.display.Image object>",
+   "error": null
+  },
+  {
+   "cell": 33,
+   "status": "ok",
+   "started": "2026-09-29T07:12:14.222317Z",
+   "ended": "2026-09-29T07:12:21.799479Z",
+   "stdout_tail": "Running export in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/export.log\nExported 66 trained tensors (113,419,976 bytes)\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/records.csv\nShowing 9 of 600 rows; open the CSV for all rows.\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/artifact_inventory.csv\n",
+   "error": null
+  },
+  {
+   "cell": 35,
+   "status": "ok",
+   "started": "2026-09-29T07:12:21.802906Z",
+   "ended": "2026-09-29T07:13:03.232390Z",
+   "stdout_tail": "Running replay in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/replay.log\nFresh-process replay (pid 1306): 3 receipts, parity PASS\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/replay_report.json\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/replay_records.csv\nRunning report in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/report.log\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/runtime_summary.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/archive_verification.json\n<IPython.core.display.Markdown object>Results ZIP (derived evidence + small bundle; no receipt images): /content/receipt_capstone_outputs/c272cec0a64b/outputs/results.zip\n",
+   "error": null
+  },
+  {
+   "cell": 37,
+   "status": "ok",
+   "started": "2026-09-29T07:13:03.235616Z",
+   "ended": "2026-09-29T07:13:05.354102Z",
+   "stdout_tail": "Running activity-target in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b/activity-target.log\n{\"folder\": \"/content/receipt_capstone_outputs/c272cec0a64b/outputs/activity/target_0.90\"}\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/c272cec0a64b/outputs/activity/target_0.90/activity_comparison.csv\n<IPython.core.display.Image object>",
+   "error": null
+  },
+  {
+   "cell": 40,
+   "status": "error",
+   "started": "2026-09-29T07:13:05.357862Z",
+   "ended": "2026-09-29T07:13:10.041890Z",
+   "stdout_tail": "ied: impira/layoutlm-document-qa@beed3c4d02d8\nRunning ocr in a separate process. Log: /content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/ocr.log\nTraceback (most recent call last):\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1925, in <module>\n    main()\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1921, in main\n    run_stage(args.root, args.stage)\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1888, in run_stage\n    STAGES[stage](run, out)\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 541, in stage_ocr\n    items = [r for r in rows if roles[r[\"receipt_id\"]] == role]\n                                ~~~~~^^^^^^^^^^^^^^^^^\nKeyError: 'cord-v2:test:0000'\nTraceback (most recent call last):\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1925, in <module>\n    main()\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1921, in main\n    run_stage(args.root, args.stage)\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 1888, in run_stage\n    STAGES[stage](run, out)\n  File \"/content/receipt_capstone_outputs/c272cec0a64b-byod-17b788/capstone.py\", line 541, in stage_ocr\n    items = [r for r in rows if roles[r[\"receipt_id\"]] == role]\n                                ~~~~~^^^^^^^^^^^^^^^^^\nKeyError: 'cord-v2:test:0000'\n\n",
+   "error": "RuntimeError: ocr failed with exit 1. Preserve the diagnostics; do not weaken checks."
+  },
+  {
+   "cell": 42,
+   "status": "not-run",
+   "started": null,
+   "ended": null,
+   "stdout_tail": "",
+   "error": null
+  }
+ ],
+ "preserved_outputs": {},
+ "staged_weights": [],
+ "executor_torch_after_run": {
+  "torch": "2.10.0+cu128",
+  "cuda": "12.8",
+  "device": "Tesla T4"
+ },
+ "finished": "2026-09-29T07:13:19Z"
+}
