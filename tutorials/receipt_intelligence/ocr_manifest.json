@@ -345,7 +345,7 @@
     "language_order": "eng+ind",
     "oem": 1,
     "omp_thread_limit": 1,
-    "psm": 4,
+    "psm": 6,
     "timeout_seconds": 60
   }
 }

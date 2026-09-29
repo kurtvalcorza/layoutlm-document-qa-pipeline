@@ -205,7 +205,7 @@ def freeze_ocr() -> None:
           "bootstrap": bootstrap, "packages": packages, "languages": languages,
           "engine_version": "5.5.0", "observed_version": version.stdout + version.stderr,
           "executable": "bin/tesseract", "relocation_note": "Package bytes are pinned. Record relocated binary hash at installation and reverify for cache/replay.",
-          "settings": {"oem": 1, "psm": 4, "language_order": "eng+ind", "timeout_seconds": 60, "omp_thread_limit": 1}})
+          "settings": {"oem": 1, "psm": 6, "language_order": "eng+ind", "timeout_seconds": 60, "omp_thread_limit": 1}})
     print("OCR_LOCK", len(packages), "packages", rev, flush=True)
 
 

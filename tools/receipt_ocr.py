@@ -52,8 +52,8 @@ LANGUAGE_HOSTS = ("raw.githubusercontent.com",)
 
 def settings_from(manifest: Mapping[str, Any]) -> dict[str, Any]:
     s = manifest["settings"]
-    if (s["oem"], s["psm"], s["language_order"]) != (1, 4, "eng+ind"):
-        raise IntegrityError("OCR manifest settings differ from the frozen design (OEM 1, PSM 4, eng+ind)")
+    if (s["oem"], s["psm"], s["language_order"]) != (1, 6, "eng+ind"):
+        raise IntegrityError("OCR manifest settings differ from the frozen design (OEM 1, PSM 6, eng+ind)")
     return dict(s)
 
 

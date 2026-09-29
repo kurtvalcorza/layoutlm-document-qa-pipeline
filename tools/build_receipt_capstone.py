@@ -129,8 +129,9 @@ print(f'Environment ready in {time.perf_counter() - step:.0f} s.')
 
 def run_stage(stage, *options, root=None):
     root = root or ROOT
-    log = root / ((stage or options[0].lstrip('-')) + '.log')
-    print('Running', stage, 'in a separate process. Log:', log, flush=True)
+    label = stage or options[0].lstrip('-')
+    log = root / (label + '.log')
+    print('Running', label, 'in a separate process. Log:', log, flush=True)
     with log.open('w', encoding='utf-8') as output:
         process = subprocess.Popen([str(PYTHON), '-u', str(root / 'capstone.py'), '--root', str(root), *(['--stage', stage] if stage else []), *options],
                                    env=ENV, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -332,7 +333,7 @@ Each receipt–field reference has one state: `present_usable` (a unique amount 
 """)
     md("""## 4. OCR inspection: can the amount be recovered from the recognised words?
 
-LayoutLM reads **words and boxes, not pixels**, so every learned system depends on OCR. One Tesseract configuration serves all three systems: LSTM engine (`--oem 1`), single-column segmentation (`--psm 4`), languages `eng+ind`, TSV word output, a 60-second limit per image, and the full EXIF-oriented image (no cropping, deskewing, binarisation or upscaling). Low-confidence words are kept. Empty OCR, a timeout or more than 2,000 words becomes a structured failure record, never a silent drop.
+LayoutLM reads **words and boxes, not pixels**, so every learned system depends on OCR. One Tesseract configuration serves all three systems: LSTM engine (`--oem 1`), uniform-block segmentation (`--psm 6`), languages `eng+ind`, TSV word output, a 60-second limit per image, and the full EXIF-oriented image (no cropping, deskewing, binarisation or upscaling). Low-confidence words are kept. Empty OCR, a timeout or more than 2,000 words becomes a structured failure record, never a silent drop.
 
 **Input:** oriented images. **System:** pinned Tesseract. **Output:** tokens with IDs, text, boxes, line identifiers and raw confidence, cached under a key that includes the pixel hash and every OCR identity.
 

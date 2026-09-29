@@ -60,7 +60,7 @@ def test_frozen_ocr_closure_is_fully_pinned():
     assert all(len(v["sha256"]) == 64 and v["revision"] in v["url"] for v in LOCK["languages"].values())
     assert ocr.settings_from(LOCK) == {
         "oem": 1,
-        "psm": 4,
+        "psm": 6,
         "language_order": "eng+ind",
         "timeout_seconds": 60,
         "omp_thread_limit": 1,
@@ -68,7 +68,7 @@ def test_frozen_ocr_closure_is_fully_pinned():
 
 
 def test_changed_ocr_settings_are_refused():
-    changed = {**LOCK, "settings": {**LOCK["settings"], "psm": 6}}
+    changed = {**LOCK, "settings": {**LOCK["settings"], "psm": 4}}
     with pytest.raises(IntegrityError):
         ocr.settings_from(changed)
 
@@ -85,7 +85,7 @@ def test_cache_key_covers_pixels_orientation_engine_languages_and_settings():
     assert base != ocr.cache_key("p", {"exif": 1}, {**identity, "executable_sha256": "f"})
     assert base != ocr.cache_key("p", {"exif": 1}, {**identity, "language_sha256": {"eng": "a"}})
     assert base != ocr.cache_key(
-        "p", {"exif": 1}, {**identity, "settings": {**identity["settings"], "psm": 6}}
+        "p", {"exif": 1}, {**identity, "settings": {**identity["settings"], "psm": 4}}
     )
 
 
