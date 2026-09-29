@@ -339,7 +339,9 @@ def run_cohort(
         if cached.is_file():
             value = json.loads(cached.read_text(encoding="utf-8"))
             if value.get("cache_key") == key:
-                return {**value, "cache_hit": True}
+                # The key is pixel content, so another cohort (or the same image under a new id) may
+                # have written this entry; the receipt id always comes from the current record.
+                return {**value, "receipt_id": record["receipt_id"], "cache_hit": True}
         try:
             image, _ = load_image(record)
         except (ContractError, OSError, ValueError) as error:

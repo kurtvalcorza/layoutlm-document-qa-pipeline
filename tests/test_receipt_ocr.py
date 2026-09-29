@@ -89,6 +89,33 @@ def test_cache_key_covers_pixels_orientation_engine_languages_and_settings():
     )
 
 
+def test_cache_hit_keeps_the_current_receipt_id(tmp_path: Path):
+    """A BYOD image whose pixels match an earlier receipt reuses its OCR, never its id."""
+
+    class Page:
+        size = (100, 40)
+
+    identity = {
+        "executable_sha256": "e",
+        "language_sha256": {"eng": "a"},
+        "settings": ocr.settings_from(LOCK),
+    }
+    calls = []
+
+    def engine(image):
+        calls.append(image)
+        return {"ocr_status": "ok", "tokens": [{"id": 0, "text": "75.000"}]}
+
+    def record(rid):
+        return {"receipt_id": rid, "pixel_sha256": "same-pixels", "orientation": {"exif": 1}}
+
+    first = ocr.run_cohort([record("cord-v2:test:0000")], lambda r: (Page(), {}), identity, engine, tmp_path)
+    again = ocr.run_cohort([record("byod-r001")], lambda r: (Page(), {}), identity, engine, tmp_path)
+    assert first[0]["receipt_id"] == "cord-v2:test:0000" and not first[0]["cache_hit"]
+    assert again[0]["receipt_id"] == "byod-r001" and again[0]["cache_hit"]
+    assert again[0]["tokens"] == first[0]["tokens"] and len(calls) == 1
+
+
 def test_missing_engine_stops_the_run(tmp_path: Path):
     with pytest.raises(IntegrityError):
         ocr.verify_engine(tmp_path / "tesseract", tmp_path, LOCK)
