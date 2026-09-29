@@ -8,7 +8,7 @@ Each state is reported separately. A green CI run or a local CPU chain is not ho
 | built | done | Generated notebook `tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb`, revision `0.1.0-candidate`, from `tools/build_receipt_capstone.py` |
 | source-checked | done (local) | `ruff check src tests tools`; `python tools/build_receipt_capstone.py --check`; `python tools/validate_release_assets.py`; see the build record below |
 | CPU-tested | done (local, test doubles) | Full `pytest`, including the stage chain on synthetic receipts. The chain uses recorded OCR tokens and a tiny random LayoutLM, then is repeated once with a local Tesseract 5.5.0 build. These are mechanics checks only |
-| hosted-executed | **pending** | No Colab T4 run of any revision exists yet |
+| hosted-executed | **default journey done** (`fc553d4`) | Kaggle Tesla T4 clean-runtime Run all of the exact PR head, 2026-09-29: 17/17 code cells, 941.8 s. See *Recorded executions*. BYOD inference, BYOD adapt and the refused-ZIP case are **not yet run** |
 | annotation-reviewed | **not started** | [`receipt-annotation-audit.md`](receipt-annotation-audit.md): no human audit performed |
 | release-qualified | **no** | Needs the hosted run, a BYOD positive run and a BYOD negative case, measured resources, and the annotation audit |
 | published / merged | **no** | Draft PR only; no merge authority implied |
@@ -40,4 +40,48 @@ Record each executed notebook, pass or fail, under `docs/execution-evidence/<dat
 
 ## Recorded executions
 
-None yet.
+| Date | Revision / notebook blob | Runtime | Journeys | Wall | Result |
+| --- | --- | --- | --- | --- | --- |
+| 2026-09-29 | `fc553d4` / `e54dd1e7` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-small-business-receipt-intelligence-caps` v1) | default + change-one-thing activity (0.90) | 941.8 s | **PASSED** (execution): 17/17 code cells ok; findings R1–R5 below |
+
+### Kaggle T4 clean-runtime execution of revision `fc553d4` — 2026-09-29
+
+- **Files.** [`execution-evidence/2026-09-29/receipt_capstone_fc553d4_kaggle-t4.ipynb`](execution-evidence/2026-09-29/receipt_capstone_fc553d4_kaggle-t4.ipynb), SHA-256 `1f2c65b1dfc99b060f183098bdaf05db31a8397a4b72065a9046220cdd7ea236`, and the executor's `receipt_capstone_fc553d4_run_summary.json`, SHA-256 `1e061cca0e5f337bbeb9a4281066b3fcc6e2bcdc5072f855f209a7e857462d6e`. Both are byte-for-byte copies of the Kaggle output.
+- **Source match.** The executor downloaded the notebook from GitHub at `fc553d4d68aa220c3cc84e2aa66c20333f6334ea` and verified its git blob `e54dd1e77c9c0cb35a262eddb6e18fd0b4d7ea7b` before execution. The executed notebook matches the PR-head notebook exactly: 42/42 cells, same ids and order, and no source diff (no `# @param` toggle was changed).
+- **Runtime.** Kaggle Batch, image `gcr.io/kaggle-gpu-images/python@sha256:37c64f7d…`, Python 3.12.13, 4 CPUs, Tesla T4 (15,360 MiB, driver 580.159.04). Run all happened in a fresh `nbclient` interpreter with an empty Hugging Face cache and no repository checkout; no restart was needed. The notebook built its isolated CPython 3.12.12 environment from the hashed lock (52 packages, about 70 s), so the image's own `torch 2.10.0+cu128` and `transformers 5.0.0` were not used.
+- **§2 OCR closure.** `tesseract 5.5.0` (leptonica 1.83.1), executable SHA-256 `b323272f…`, micromamba explicit offline create from SHA-256-verified packages, `qualifying_runtime: true`. This is the first execution of the Linux OCR install. Base checkpoint `impira/layoutlm-document-qa@beed3c4d02d8` was verified.
+- **§3 data.** Frozen cohort train 798 / validation_model 50 / validation_policy 50 / test 100, with 2 train exclusions. Usable total references: 767 / 49 / 49 / 94. Reference audit: 24 `unparseable_source_value`, 11 `invalid_or_missing_value_words`, 4 `multiple_incompatible_values`.
+- **§4 OCR.** 998 receipts in 390 s. `ocr_empty` for 162 / 9 / 12 / 22 receipts (train / validation_model / validation_policy / test), with 0 timeouts, errors or image errors. Median 13–15 words per receipt.
+- **§7 training.** 432 aligned OCR examples from 257 receipts; 922 targets were skipped as `target_not_recoverable_from_ocr` and 374 as `ocr_empty`. Validation_model total EM was 0.265 / 0.245 / 0.265 / 0.265 over epochs 1–4, so **epoch 1** was selected. 216 optimizer steps in 52 s; 28,353,026 of 127,792,898 parameters trainable; adapter SHA-256 `e1f83717…`.
+- **§8 policy.** At the 0.95 target no system has a feasible threshold on validation_policy, so all three are `refer_all` (coverage 0).
+- **§9 test (evaluated once, selection record `e510b603b85b2f5b`).**
+
+  | System | Total EM | Correct / usable | Field-macro EM |
+  | --- | --- | --- | --- |
+  | rules_baseline | 0.1809 | 17 / 94 | 0.1651 |
+  | layoutlm_frozen | 0.2128 | 20 / 94 | 0.1952 |
+  | layoutlm_adapted | 0.2340 | 22 / 94 | 0.2069 |
+
+  Paired receipt bootstrap (2,000 resamples): adapted − frozen 0.0213 [−0.0322, 0.0851]; frozen − rules 0.0319 [−0.0319, 0.0957]; adapted − rules 0.0532 [0.0106, 0.1064].
+- **§10 diagnostics.** With the reference text in place of OCR, total EM is 0.82 / 0.88 / 0.87 (rules / frozen / adapted). The test total appears in the OCR for only 26 of 94 receipts (27.7%); subtotal 18.5%, tax 17.9%, service 25.0%.
+- **§11–§12 export and replay.** 66 trained tensors (113,419,976 bytes). A fresh-process replay (pid 1304) of 3 held-out receipts reached `all_parity: 1.0`. Results ZIP: 32 members, 105,374,681 bytes, CRC and member digests pass.
+- **Resources.** The largest stage was OCR, at 389.7 s. Peak RSS was 3.84 GiB (prepare) and peak GPU allocation 1.67 GiB (train).
+- **Evidence boundary.** Each cell's output was inspected in the executed notebook. This is one clean-runtime execution. It was not independently repeated, and it is not a Colab run.
+
+| Journey | Verdict |
+| --- | --- |
+| Default Run all (canonical path, §1–§12) | **PASS**: executes end to end; metrics above |
+| Change-one-thing activity (`ACTIVITY_TARGET = 0.90`, default) | **PASS (mechanics)**: ran and wrote `activity/target_0.90/`. At both 0.95 and 0.90 every system stays infeasible, so the activity shows no contrast (R1) |
+| BYOD inference / BYOD adapt / refused ZIP | not assessed in this run |
+| `DOWNLOAD_RESULTS` (Colab `files.download`) | not assessed (Kaggle, default off) |
+| Repeated Run all in a warm runtime | not assessed |
+
+**Findings from this run.** These are for the maintainer to disposition; nothing has been changed yet.
+
+- **R1 (major, teaching contract).** The review policy is infeasible for every system at both 0.95 and 0.90, so §8, the §9 review table and the change-one-thing activity all read "refer all, coverage 0" on the default path, and the activity demonstrates nothing. The cause is the low OCR recoverability (R2), not the policy code.
+- **R2 (major, OCR yield).** 20.5% of receipts come back `ocr_empty`, and the test total is recoverable from OCR on only 27.7% of receipts. The §4 figure (train:0296) shows CORD's privacy blurring of most receipt text, which is a plausible main cause, but the blurring has not been shown to be the only cause. OCR is the dominant error source: reference-text EM is about 0.85, against about 0.2 on OCR.
+- **R3 (minor).** Fine-tuning on 432 aligned examples is not separable from frozen LayoutLM on test (the adapted − frozen interval includes 0), and validation EM is flat across epochs, so epoch 1 is selected.
+- **R4 (cosmetic).** Missing values render as `undefined` in the notebook's Markdown tables (threshold, accuracy interval, empty cells).
+- **R5 (cosmetic).** The activity cell prints `Running None in a separate process` because the stage label is missing.
+
+**Still open before promotion.** BYOD inference, BYOD adapt and one refused ZIP; dispositions of R1–R5; the annotation audit; and a human decision on promotion. Status stays **Candidate**.

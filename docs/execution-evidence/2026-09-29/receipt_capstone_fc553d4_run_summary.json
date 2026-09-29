@@ -1,0 +1,188 @@
+{
+ "identity": {
+  "repository": "layoutlm-document-qa-pipeline",
+  "candidate_sha": "fc553d4d68aa220c3cc84e2aa66c20333f6334ea",
+  "notebook": "tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb",
+  "committed_blob": "e54dd1e77c9c0cb35a262eddb6e18fd0b4d7ea7b",
+  "fetched_blob_verified": true,
+  "kaggle_docker_image": "gcr.io/kaggle-gpu-images/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "kaggle_run_type": "Batch",
+  "os": "Linux-6.12.90+-x86_64-with-glibc2.35",
+  "python": "3.12.13",
+  "cpu_count": 4,
+  "image_versions_before_run": {
+   "torch": "2.10.0+cu128",
+   "numpy": "2.0.2",
+   "transformers": "5.0.0",
+   "tokenizers": "0.22.2",
+   "safetensors": "0.7.0",
+   "huggingface-hub": "1.11.0",
+   "pillow": "11.3.0",
+   "nbclient": "0.10.2",
+   "ipykernel": "6.17.1"
+  },
+  "started": "2026-09-29T05:41:03Z",
+  "nvidia_smi": "Tesla T4, 15360 MiB, 580.159.04\nTesla T4, 15360 MiB, 580.159.04",
+  "hf_cache_clean_at_start": true
+ },
+ "runner": {
+  "ok": true,
+  "started": "2026-09-29T05:41:05Z",
+  "passes": [
+   {
+    "attempt": 1,
+    "started": "2026-09-29T05:41:05Z",
+    "ok": true,
+    "wall_s": 941.7
+   }
+  ],
+  "wall_s": 941.8,
+  "finished": "2026-09-29T05:56:47Z"
+ },
+ "cells": [
+  {
+   "cell": 2,
+   "status": "ok",
+   "started": "2026-09-29T05:41:07.254739Z",
+   "ended": "2026-09-29T05:41:07.262001Z",
+   "stdout_tail": "Controls set. BYOD is off (default).\n",
+   "error": null
+  },
+  {
+   "cell": 4,
+   "status": "ok",
+   "started": "2026-09-29T05:41:07.265745Z",
+   "ended": "2026-09-29T05:41:07.313305Z",
+   "stdout_tail": "Device: Tesla T4\nTesla T4 | CPUs: 4\nRun directory: /content/receipt_capstone_outputs/0425d860cc6a\n",
+   "error": null
+  },
+  {
+   "cell": 5,
+   "status": "ok",
+   "started": "2026-09-29T05:41:07.358262Z",
+   "ended": "2026-09-29T05:41:07.835588Z",
+   "stdout_tail": "Embedded implementation verified: 19 files, notebook revision 0.1.0-candidate.\n",
+   "error": null
+  },
+  {
+   "cell": 6,
+   "status": "ok",
+   "started": "2026-09-29T05:41:07.839938Z",
+   "ended": "2026-09-29T05:42:17.318486Z",
+   "stdout_tail": "oaded nvidia-nccl-cu12\n Downloaded nvidia-cublas-cu12\n Downloaded nvidia-cudnn-cu12\n Downloaded torch\nPrepared 52 packages in 56.13s\nInstalled 52 packages in 352ms\n + certifi==2026.7.22\n + charset-normalizer==3.5.1\n + contourpy==1.4.0\n + cycler==0.12.1\n + filelock==4.0.5\n + fonttools==4.66.0\n + fsspec==2026.9.0\n + hf-xet==1.6.0\n + huggingface-hub==0.36.0\n + idna==3.20\n + jinja2==3.1.6\n + kiwisolver==1.5.1\n + markupsafe==3.0.3\n + matplotlib==3.10.6\n + mpmath==1.3.0\n + networkx==3.7\n + numpy==2.2.6\n + nvidia-cublas-cu12==12.8.4.1\n + nvidia-cuda-cupti-cu12==12.8.90\n + nvidia-cuda-nvrtc-cu12==12.8.93\n + nvidia-cuda-runtime-cu12==12.8.90\n + nvidia-cudnn-cu12==9.10.2.21\n + nvidia-cufft-cu12==11.3.3.83\n + nvidia-cufile-cu12==1.13.1.3\n + nvidia-curand-cu12==10.3.9.90\n + nvidia-cusolver-cu12==11.7.3.90\n + nvidia-cusparse-cu12==12.5.8.93\n + nvidia-cusparselt-cu12==0.7.1\n + nvidia-nccl-cu12==2.27.5\n + nvidia-nvjitlink-cu12==12.8.93\n + nvidia-nvshmem-cu12==3.3.20\n + nvidia-nvtx-cu12==12.8.90\n + packaging==26.3\n + pillow==11.3.0\n + psutil==7.1.0\n + pyarrow==21.0.0\n + pyparsing==3.3.3\n + python-dateutil==2.9.0.post0\n + pyyaml==6.0.3\n + regex==2026.9.10\n + requests==2.34.2\n + safetensors==0.6.2\n + setuptools==80.9.0\n + six==1.17.0\n + sympy==1.14.0\n + tokenizers==0.22.2\n + torch==2.9.1\n + tqdm==4.70.1\n + transformers==4.57.6\n + triton==3.5.1\n + typing-extensions==4.16.0\n + urllib3==2.8.0\nPython 3.12.12\ntorch 2.9.1+cu128 CUDA 12.8 | transformers 4.57.6\nGPU Tesla T4\nEnvironment ready in 69 s.\n",
+   "error": null
+  },
+  {
+   "cell": 7,
+   "status": "ok",
+   "started": "2026-09-29T05:42:17.322946Z",
+   "ended": "2026-09-29T05:42:39.605823Z",
+   "stdout_tail": "Running ocr_runtime in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/ocr_runtime.log\nOCR engine: tesseract 5.5.0 (leptonica-1.83.1); languages eng+ind verified\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/ocr_runtime.json\nRunning model in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/model.log\nBase checkpoint verified: impira/layoutlm-document-qa@beed3c4d02d8\n",
+   "error": null
+  },
+  {
+   "cell": 9,
+   "status": "ok",
+   "started": "2026-09-29T05:42:39.609733Z",
+   "ended": "2026-09-29T05:46:17.788186Z",
+   "stdout_tail": "Running prepare in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/prepare.log\nFrozen cohort: {'test': 100, 'train': 798, 'validation_model': 50, 'validation_policy': 50}; nominal source counts {'test': 100, 'train': 800, 'validation': 100}; summary {'test': 100, 'train': 798, 'validation_model': 50, 'validation_policy': 50}\nRunning references in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/references.log\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/data_summary.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/reference_states.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/reference_examples.csv\n",
+   "error": null
+  },
+  {
+   "cell": 12,
+   "status": "ok",
+   "started": "2026-09-29T05:46:17.791916Z",
+   "ended": "2026-09-29T05:52:47.768778Z",
+   "stdout_tail": "Running ocr in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/ocr.log\n  OCR 50/998 receipts\n  OCR 100/998 receipts\n  OCR 150/998 receipts\n  OCR 200/998 receipts\n  OCR 250/998 receipts\n  OCR 300/998 receipts\n  OCR 350/998 receipts\n  OCR 400/998 receipts\n  OCR 450/998 receipts\n  OCR 500/998 receipts\n  OCR 550/998 receipts\n  OCR 600/998 receipts\n  OCR 650/998 receipts\n  OCR 700/998 receipts\n  OCR 750/998 receipts\n  OCR 800/998 receipts\n  OCR 850/998 receipts\n  OCR 900/998 receipts\n  OCR 950/998 receipts\nOCR finished for 998 receipts in 390 s\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/ocr_summary.csv\n<IPython.core.display.Image object><IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/ocr_tokens_example.csv\n",
+   "error": null
+  },
+  {
+   "cell": 15,
+   "status": "ok",
+   "started": "2026-09-29T05:52:47.778572Z",
+   "ended": "2026-09-29T05:52:48.745070Z",
+   "stdout_tail": "Running keywords in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/keywords.log\nKeyword dictionary: 39 phrases from training annotations only\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/keyword_rules.csv\nShowing 30 of 39 rows; open the CSV for all rows.\nRunning rules in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/rules.log\nRule baseline predictions: 200 receipts x 4 fields\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/validation_comparison.csv\n",
+   "error": null
+  },
+  {
+   "cell": 18,
+   "status": "ok",
+   "started": "2026-09-29T05:52:48.749131Z",
+   "ended": "2026-09-29T05:53:23.779586Z",
+   "stdout_tail": "Running frozen in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/frozen.log\n  frozen LayoutLM 50/200\n  frozen LayoutLM 100/200\n  frozen LayoutLM 150/200\n  frozen LayoutLM 200/200\nFrozen LayoutLM predictions: 200 receipts in 21 s\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/validation_comparison.csv\n",
+   "error": null
+  },
+  {
+   "cell": 21,
+   "status": "ok",
+   "started": "2026-09-29T05:53:23.783698Z",
+   "ended": "2026-09-29T05:54:54.063758Z",
+   "stdout_tail": "Running train in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/train.log\nTraining on 432 aligned OCR examples from 257 receipts\nepoch 1: train loss 1.2611, validation_model total EM 0.2653061224489796\nepoch 2: train loss 0.7041, validation_model total EM 0.24489795918367346\nepoch 3: train loss 0.5824, validation_model total EM 0.2653061224489796\nepoch 4: train loss 0.4979, validation_model total EM 0.2653061224489796\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/alignment_summary.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/training_history.json\n<IPython.core.display.Image object><IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/validation_comparison.csv\n",
+   "error": null
+  },
+  {
+   "cell": 24,
+   "status": "ok",
+   "started": "2026-09-29T05:54:54.067713Z",
+   "ended": "2026-09-29T05:54:56.163690Z",
+   "stdout_tail": "Running select_policy in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/select_policy.log\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/policy_selection.csv\n<IPython.core.display.Image object>",
+   "error": null
+  },
+  {
+   "cell": 27,
+   "status": "ok",
+   "started": "2026-09-29T05:54:56.167794Z",
+   "ended": "2026-09-29T05:55:02.532544Z",
+   "stdout_tail": "Running freeze in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/freeze.log\nSelection record frozen: e510b603b85b2f5b\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/selection_record.json\nRunning evaluate in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/evaluate.log\nHeld-out test evaluated once with the frozen selection record e510b603b85b2f5b\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/system_comparison.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/paired_bootstrap.csv\n<IPython.core.display.Image object><IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/field_metrics.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/review_metrics.csv\n",
+   "error": null
+  },
+  {
+   "cell": 30,
+   "status": "ok",
+   "started": "2026-09-29T05:55:02.536685Z",
+   "ended": "2026-09-29T05:55:47.860565Z",
+   "stdout_tail": "Running diagnose in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/diagnose.log\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/reference_text_diagnostic.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/ocr_recoverability.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/failure_panel.csv\n<IPython.core.display.Image object><IPython.core.display.Image object><IPython.core.display.Image object><IPython.core.display.Image object><IPython.core.display.Image object>",
+   "error": null
+  },
+  {
+   "cell": 33,
+   "status": "ok",
+   "started": "2026-09-29T05:55:47.875072Z",
+   "ended": "2026-09-29T05:55:56.580829Z",
+   "stdout_tail": "Running export in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/export.log\nExported 66 trained tensors (113,419,976 bytes)\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/records.csv\nShowing 9 of 600 rows; open the CSV for all rows.\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/artifact_inventory.csv\n",
+   "error": null
+  },
+  {
+   "cell": 35,
+   "status": "ok",
+   "started": "2026-09-29T05:55:56.584787Z",
+   "ended": "2026-09-29T05:56:44.639551Z",
+   "stdout_tail": "Running replay in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/replay.log\nFresh-process replay (pid 1304): 3 receipts, parity PASS\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/replay_report.json\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/replay_records.csv\nRunning report in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/report.log\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/runtime_summary.csv\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/archive_verification.json\n<IPython.core.display.Markdown object>Results ZIP (derived evidence + small bundle; no receipt images): /content/receipt_capstone_outputs/0425d860cc6a/outputs/results.zip\n",
+   "error": null
+  },
+  {
+   "cell": 37,
+   "status": "ok",
+   "started": "2026-09-29T05:56:44.643682Z",
+   "ended": "2026-09-29T05:56:46.699579Z",
+   "stdout_tail": "Running None in a separate process. Log: /content/receipt_capstone_outputs/0425d860cc6a/activity-target.log\n{\"folder\": \"/content/receipt_capstone_outputs/0425d860cc6a/outputs/activity/target_0.90\"}\n<IPython.core.display.Markdown object>File: receipt_capstone_outputs/0425d860cc6a/outputs/activity/target_0.90/activity_comparison.csv\n<IPython.core.display.Image object>",
+   "error": null
+  },
+  {
+   "cell": 40,
+   "status": "ok",
+   "started": "2026-09-29T05:56:46.703949Z",
+   "ended": "2026-09-29T05:56:46.713747Z",
+   "stdout_tail": "Optional BYOD is off. The canonical capstone is complete.\n",
+   "error": null
+  }
+ ],
+ "preserved_outputs": {},
+ "staged_weights": [],
+ "executor_torch_after_run": {
+  "torch": "2.10.0+cu128",
+  "cuda": "12.8",
+  "device": "Tesla T4"
+ },
+ "finished": "2026-09-29T05:56:57Z"
+}
