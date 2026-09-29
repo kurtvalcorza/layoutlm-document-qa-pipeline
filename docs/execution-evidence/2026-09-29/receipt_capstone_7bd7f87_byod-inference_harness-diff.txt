@@ -1,0 +1,11 @@
+--- a/code-02
++++ b/code-02
+@@ -4 +4 @@
+-USE_BYOD = False # @param {type:'boolean'}
++USE_BYOD = True # @param {type:'boolean'}
+@@ -6,2 +6,2 @@
+-BYOD_PATH = '' # @param {type:'string'}
+-BYOD_AUTHORIZED = False # @param {type:'boolean'}
++BYOD_PATH = '/kaggle/working/byod/inference.zip' # @param {type:'string'}
++BYOD_AUTHORIZED = True # @param {type:'boolean'}
++ appended harness cells: kaggleharness-refused-zip

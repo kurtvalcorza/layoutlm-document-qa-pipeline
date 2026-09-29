@@ -8,7 +8,7 @@ Each state is reported separately. A green CI run or a local CPU chain is not ho
 | built | done | Generated notebook `tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb`, revision `0.1.0-candidate`, from `tools/build_receipt_capstone.py` |
 | source-checked | done (local) | `ruff check src tests tools`; `python tools/build_receipt_capstone.py --check`; `python tools/validate_release_assets.py`; see the build record below |
 | CPU-tested | done (local, test doubles) | Full `pytest`, including the stage chain on synthetic receipts. The chain uses recorded OCR tokens and a tiny random LayoutLM, then is repeated once with a local Tesseract 5.5.0 build. These are mechanics checks only |
-| hosted-executed | **default journey done** (`78ef7c3`); **BYOD failed** | Kaggle Tesla T4 clean-runtime Run all, 2026-09-29: default 17/17 code cells at `78ef7c3` (PSM 6). BYOD inference and adapt both failed at `78ef7c3` in the BYOD `ocr` stage (OCR cache returned another receipt's id). The refused-ZIP check never ran. See *Recorded executions* |
+| hosted-executed | **all journeys done at `7bd7f87`** (Kaggle T4, CORD stand-ins for BYOD) | 2026-09-29 clean-runtime Run all at `7bd7f87`: BYOD inference + refused ZIP (18/18 code cells) and BYOD adapt (17/17), each also repeating the canonical path with results identical to the `78ef7c3` default run. BYOD used CORD stand-ins whose OCR came from the cache, so fresh OCR of new BYOD images is not evidenced. No Colab run and no BYOD run on real learner receipts yet. See *Recorded executions* |
 | annotation-reviewed | **not started** | [`receipt-annotation-audit.md`](receipt-annotation-audit.md): no human audit performed |
 | release-qualified | **no** | Needs the hosted run, a BYOD positive run and a BYOD negative case, measured resources, and the annotation audit |
 | published / merged | **no** | Draft PR only; no merge authority implied |
@@ -46,6 +46,8 @@ Record each executed notebook, pass or fail, under `docs/execution-evidence/<dat
 | 2026-09-29 | `78ef7c3` / `18cfc43b` | Kaggle Tesla T4 (same kernel, v2) | default + change-one-thing activity (0.90) | 1077.4 s | **PASSED** (execution): 17/17 code cells ok; R2 and R5 fixed; R1 persists (structural) |
 | 2026-09-29 | `78ef7c3` / `18cfc43b` | Kaggle Tesla T4 (same kernel, v3) | BYOD inference (12 CORD stand-ins) + refused ZIP | — | **FAILED** at `code-40`, the BYOD `ocr` stage: `KeyError: 'cord-v2:test:0000'` (R6). The refused-ZIP harness cell did not run |
 | 2026-09-29 | `78ef7c3` / `18cfc43b` | Kaggle Tesla T4 (same kernel, v4) | BYOD adapt (133 CORD stand-ins) | — | **FAILED** at `code-40`, the BYOD `ocr` stage: `KeyError: 'cord-v2:test:0001'` (R6) |
+| 2026-09-29 | `7bd7f87` / `329fbfe8` | Kaggle Tesla T4 (same kernel, v5) | canonical + BYOD inference (12 stand-ins) + refused ZIP | 1111.3 s | **PASSED**: 18/18 code cells ok, including 1 appended harness cell |
+| 2026-09-29 | `7bd7f87` / `329fbfe8` | Kaggle Tesla T4 (same kernel, v6) | canonical + BYOD adapt (133 stand-ins) | 1125.8 s | **PASSED**: 17/17 code cells ok |
 
 ### Kaggle T4 clean-runtime execution of revision `fc553d4` — 2026-09-29
 
@@ -125,3 +127,29 @@ Record each executed notebook, pass or fail, under `docs/execution-evidence/<dat
 | BYOD inference | **FAIL** (R6) |
 | BYOD adapt | **FAIL** (R6) |
 | Refused ZIP | not assessed; the preceding BYOD cell failed first |
+
+### Kaggle T4 clean-runtime BYOD executions of revision `7bd7f87` — 2026-09-29
+
+The R6 fix (`7bd7f87`: an OCR cache hit keeps the current record's `receipt_id`) was followed by a re-run of both BYOD journeys. The harness, stand-in archives and private dataset are the same as for `78ef7c3` (see above). Before execution, the executor verified blob `329fbfe87258d5dd6bd076c1c202f0a4f82865fe` and saved the committed bytes, which are identical to the PR-head notebook. Runtime: the same Kaggle image and Tesla T4 as before.
+
+| Run | File (SHA-256) | Source vs PR head | Cells | Wall |
+| --- | --- | --- | --- | --- |
+| v5: BYOD inference + refused ZIP | [`receipt_capstone_7bd7f87_byod-inference.ipynb`](execution-evidence/2026-09-29/receipt_capstone_7bd7f87_byod-inference.ipynb) (`9f522c76868ced999935d053ab06108b7ef821033cca54c927f36b1d093eb89e`) | `code-02` toggles only, plus the declared harness cell `kaggleharness-refused-zip` | 18/18 ok, counts 1..18 | 1111.3 s |
+| v6: BYOD adapt | [`receipt_capstone_7bd7f87_byod-adapt.ipynb`](execution-evidence/2026-09-29/receipt_capstone_7bd7f87_byod-adapt.ipynb) (`9a07c16e3edf62813abfdacd858f391321ec84d070316017202d652456097c64`) | `code-02` toggles only | 17/17 ok, counts 1..17 | 1125.8 s |
+
+- **Canonical path (both runs).** Results are identical to the `78ef7c3` default run: adapter SHA-256 `da69be11…`; test total correct 35 / 35 / 28 of 94 (adapted / frozen / rules); 998 receipts OCR'd; 636 aligned training examples; epoch 3 selected. Only the selection-record digest differs, because it includes the freeze timestamp. This is therefore a default-journey execution of `7bd7f87` as well. The source diff from `78ef7c3` is limited to the OCR cache change.
+- **BYOD inference (v5): PASS.** Cohort `{'inference': 12}`. The stages were prepare, ocr_runtime, model, ocr and byod_infer, and 12 records were written to a separate `…-byod-…/outputs` directory. Every `total_review_state` is `needs_review` (the inference-mode default), and the notebook states that no accuracy is reported without checked references. Five totals normalised; the rest are `undefined` because the conservative grammar refused OCR text such as `28, 006`.
+- **Refused ZIP (v5 harness cell): PASS.** `code-40`'s committed source (SHA-256-guarded) raised `BYOD archive refused: receipt_common.ContractError: Unsafe archive path: '../escape.png'`, and no BYOD run directory was created.
+- **BYOD adapt (v6): PASS.** Cohort train 68 / validation_model 20 / validation_policy 20 / test 25, and all 16 stages ran. 55 aligned examples came from 31 train receipts. Validation_model total EM by epoch was 0.30 / 0.30 / 0.40 / 0.35. Selection record `5b94226e6f0505e3`; the held-out test was evaluated once. Test total correct: rules 5, frozen 8, adapted 7 of 25; the intervals are wide. The policy was infeasible for every system (R1). The replay of 3 receipts reached parity PASS.
+- **Evidence boundary.** The stand-ins are pixel-identical to CORD receipts, so both BYOD OCR stages were served from the canonical OCR cache (12 receipts in 0 s; 133 in 1 s). That exercises the R6 path, but **fresh Tesseract OCR of previously unseen BYOD images is not evidenced**, and no real learner receipts were used. Saved outputs were inspected; execution was not independently repeated.
+
+| Journey at `7bd7f87` | Verdict |
+| --- | --- |
+| Default Run all | **PASS** (canonical cells of v5 and v6, identical to `78ef7c3` v2) |
+| Change-one-thing activity | **PASS (mechanics)**; no contrast (R1, structural, open) |
+| BYOD inference | **PASS** (stand-ins; OCR from cache) |
+| BYOD adapt | **PASS** (stand-ins; OCR from cache) |
+| Refused ZIP | **PASS** |
+| Colab `DOWNLOAD_RESULTS` / Colab runtime | not assessed (Kaggle) |
+
+**Still open before promotion.** R1 disposition (a review-policy design decision); a BYOD run with images not seen before; optionally a Colab T4 run; the annotation audit; and a human promotion decision. Status stays **Candidate**.
