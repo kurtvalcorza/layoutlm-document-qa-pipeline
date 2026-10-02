@@ -2,7 +2,7 @@
 
 Reviewed revision: `ad47ef8` (notebook blob `329fbfe8`, `0.1.0-candidate`). Fixed revision: `0.2.0-candidate` on branch `fix/receipt-capstone-review`. All changes are made in the generator (`tools/build_receipt_capstone.py`) and the carried modules; the notebook is regenerated and `--check` parity passes. The review report and its probe ZIP are in this folder.
 
-**Readiness: Verification pending.** The fixes are source-checked and CPU-tested only. No hosted run of `0.2.0-candidate` exists yet.
+**Readiness: Verification pending.** The fixes are source-checked and CPU-tested. A maintainer-supplied Colab T4 run of `4b950a1` (2026-10-02) passed the default journey and the §13 activity, with default results identical to `0.1.0-candidate`; see `docs/receipt-release-evidence.md`. A second commit (`4b950a1`) split the 1.18 MB carrier line that froze Colab while opening the notebook. BYOD has not yet been run at this revision.
 
 ## Fixes per finding
 

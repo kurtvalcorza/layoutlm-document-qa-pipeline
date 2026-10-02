@@ -2,7 +2,7 @@
 
 **Notebook:** `tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb` (revision `0.2.0-candidate`)
 **Specification:** [`receipt-capstone-spec.md`](receipt-capstone-spec.md) (v1.0, unchanged) · **Profile / mode:** `E2E` / `GUIDED`, Notebook Specification 2.2
-**Status:** Candidate. Revision `0.2.0-candidate` fixes the 2026-10-02 Notebook Review Framework v1 findings (RC-B1, RC-M1, RC-m1–m5); it is built, source-checked and CPU-tested with labelled test doubles, and **not yet hosted-executed**. Revision `0.1.0-candidate` had every journey (default, BYOD inference and adapt with CORD stand-ins, refused ZIP) hosted-executed on a clean-runtime Kaggle T4 at `7bd7f87` on 2026-09-29. The notebook is **not** annotation-reviewed or release-qualified. See [`receipt-release-evidence.md`](receipt-release-evidence.md).
+**Status:** Candidate. Revision `0.2.0-candidate` fixes the 2026-10-02 Notebook Review Framework v1 findings (RC-B1, RC-M1, RC-m1–m5); it is built, source-checked and CPU-tested with labelled test doubles, and its default journey and §13 activity passed on a maintainer-supplied Colab T4 at `4b950a1` on 2026-10-02 (BYOD not yet run at this revision). Revision `0.1.0-candidate` had every journey (default, BYOD inference and adapt with CORD stand-ins, refused ZIP) hosted-executed on a clean-runtime Kaggle T4 at `7bd7f87` on 2026-09-29. The notebook is **not** annotation-reviewed or release-qualified. See [`receipt-release-evidence.md`](receipt-release-evidence.md).
 
 ## Source layout
 
