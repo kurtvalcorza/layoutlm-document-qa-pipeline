@@ -45,7 +45,7 @@ from receipt_common import (
 )
 
 HERE = Path(__file__).resolve().parent  # sibling modules import because the script directory leads sys.path
-NOTEBOOK_REVISION = "0.1.0-candidate"
+NOTEBOOK_REVISION = "0.2.0-candidate"
 PREDICTION_SCHEMA = "org.dimer.receipt-intelligence.prediction.v1"
 SYSTEMS = ("rules_baseline", "layoutlm_frozen", "layoutlm_adapted")
 EVAL_ROLES = ("validation_model", "validation_policy", "test")
@@ -824,8 +824,14 @@ def system_predictions(run: Run) -> dict[str, dict[str, dict[str, Any]]]:
 
 
 def _policy_figure(
-    run: Run, sweeps: dict[str, list], chosen: dict[str, dict], path: Path, title: str
+    run: Run,
+    sweeps: dict[str, list],
+    chosen: dict[str, dict],
+    path: Path,
+    title: str,
+    lines: tuple[float, float] | None = None,
 ) -> None:
+    """Accuracy-coverage sweep; ``lines`` = (accuracy, coverage) guides, else the chosen policy targets."""
     plt = _plt()
     fig, ax = plt.subplots(figsize=(6, 3.8))
     colours = {"rules_baseline": "#999999", "layoutlm_frozen": "#0072B2", "layoutlm_adapted": "#D55E00"}
@@ -842,9 +848,11 @@ def _policy_figure(
                 facecolors="none",
                 edgecolors=colours[system],
             )
-    target = next(iter(chosen.values()))["targets"]
-    ax.axhline(target["min_accuracy"], color="black", lw=0.8, ls=":")
-    ax.axvline(target["min_coverage"], color="black", lw=0.8, ls=":")
+    if lines is None:
+        target = next(iter(chosen.values()))["targets"]
+        lines = (target["min_accuracy"], target["min_coverage"])
+    ax.axhline(lines[0], color="black", lw=0.8, ls=":")
+    ax.axvline(lines[1], color="black", lw=0.8, ls=":")
     ax.set(
         xlabel="Coverage of scoreable validation_policy receipts",
         ylabel="Accuracy among unflagged totals",
@@ -1168,6 +1176,22 @@ def stage_evaluate(run: Run, out: Path) -> None:
 PANEL_CATEGORIES = ("success", "ocr_loss", "extraction_error", "numeric_ambiguity", "failure_or_no_candidate")
 
 
+def panel_category(correct: bool, parse_status: str, recoverable: bool) -> str:
+    """Failure-panel label for one adapted total, in the order the notebook explains (§10).
+
+    ``numeric_ambiguity`` is kept for amounts the grammar refuses to guess (``ambiguous``/``unsupported``).
+    A ``parse_failed`` span (letters, a bare currency marker) is an OCR loss when the right amount is not
+    in the OCR at all, and an extraction error when it is there but the model chose other words.
+    """
+    if correct:
+        return "success"
+    if parse_status in ("failed", "no_candidate"):
+        return "failure_or_no_candidate"
+    if parse_status in ("ambiguous", "unsupported"):
+        return "numeric_ambiguity"
+    return "extraction_error" if recoverable else "ocr_loss"
+
+
 def stage_diagnose(run: Run, out: Path) -> None:
     import receipt_models as models
 
@@ -1276,20 +1300,9 @@ def stage_diagnose(run: Run, out: Path) -> None:
             ref, pred = refs[rid]["fields"]["total_amount"], adapted[rid]["fields"]["total_amount"]
             if rid in used or ref["state"] != "present_usable":
                 continue
-            ok = metrics.correct(pred, ref)
+            ok = bool(metrics.correct(pred, ref))
             rec = recover[rid]["total_amount"].startswith("recoverable")
-            status = pred["parse_status"]
-            label = (
-                "success"
-                if ok
-                else "failure_or_no_candidate"
-                if status in ("failed", "no_candidate")
-                else "numeric_ambiguity"
-                if status in ("ambiguous", "unsupported", "parse_failed")
-                else "extraction_error"
-                if rec
-                else "ocr_loss"
-            )
+            label = panel_category(ok, pred["parse_status"], rec)
             if label == category:
                 pick = rid
                 break
@@ -1754,46 +1767,51 @@ def stage_report(run: Run, out: Path) -> None:
         run.public(name, out / name)
 
 
-def run_activity(run: Run, target: float) -> dict[str, Any]:
-    """Change-one-thing activity: a different accuracy target on cached validation_policy predictions.
+def run_activity(run: Run, coverage: float) -> dict[str, Any]:
+    """Change-one-thing activity: leave a chosen share of validation_policy totals unflagged.
 
-    Writes only to outputs/activity/<target>/; the canonical policy, model and test results are untouched.
+    Each system keeps its top-scored totals up to the requested coverage, on cached validation_policy
+    predictions. Writes only to outputs/activity/coverage_<x>/; the canonical policy, model, selection
+    record and test results are untouched.
     """
     canonical = read_json(run.stage_dir("select_policy") / "review_policy.json")["systems"]
     preds = system_predictions(run)
     refs = run.references("policy_selection", ("validation_policy",))
     ids = sorted(refs)
-    folder = run.outputs / "activity" / f"target_{target:.2f}"
+    folder = run.outputs / "activity" / f"coverage_{coverage:.2f}"
     if folder.exists():
         shutil.rmtree(folder)
     folder.mkdir(parents=True)
     rows, chosen, sweeps = [], {}, {}
     for system in SYSTEMS:
-        result = policy.activity(preds[system], refs, ids, system, target)
-        chosen[system], sweeps[system] = result["policy"], result["sweep"]
-        for label, pol in (
-            ("canonical_0.95", canonical[system]),
-            (f"activity_{target:.2f}", result["policy"]),
-        ):
-            rows.append(
-                {
-                    "system": system,
-                    "setting": label,
-                    "policy_feasible": pol["policy_feasible"],
-                    "threshold": pol["threshold"],
-                    "accepted": pol["accepted"],
-                    "coverage": pol["coverage"],
-                    "empirical_accuracy": pol["empirical_accuracy"],
-                    "selection_support": pol["selection_support"],
-                }
-            )
+        result = policy.coverage_operating_point(preds[system], refs, ids, system, coverage)
+        point, sweeps[system] = result["point"], result["sweep"]
+        chosen[system] = point
+        pol = canonical[system]
+        accuracy = pol["empirical_accuracy"]
+        canonical_row = {
+            "setting": "canonical_95pct_policy",
+            **{k: pol[k] for k in ("threshold", "accepted", "coverage", "empirical_accuracy")},
+            "unflagged_wrong": 0 if accuracy is None else round(pol["accepted"] * (1 - accuracy)),
+            "accuracy_interval": pol["empirical_accuracy_interval_wilson"],
+            "reached_requested": "not_applicable",
+        }
+        activity_row = {
+            "setting": f"activity_coverage_{coverage:.2f}",
+            **{k: point[k] for k in ("threshold", "accepted", "coverage", "empirical_accuracy")},
+            "unflagged_wrong": point["unflagged_wrong"],
+            "accuracy_interval": point["empirical_accuracy_interval_wilson"],
+            "reached_requested": point["reached_requested"],
+        }
+        for row in (canonical_row, activity_row):
+            rows.append({"system": system, **row, "selection_support": point["selection_support"]})
     write_csv(folder / "activity_comparison.csv", rows, list(rows[0]))
     write_json(
         folder / "activity.json",
         {
-            "target": target,
+            "requested_coverage": coverage,
             "role": "validation_policy",
-            "policies": chosen,
+            "operating_points": chosen,
             "canonical_unchanged": True,
             "test_used": False,
         },
@@ -1803,7 +1821,8 @@ def run_activity(run: Run, target: float) -> dict[str, Any]:
         sweeps,
         chosen,
         folder / "activity.png",
-        f"Activity: accuracy target {target:.2f} (validation_policy)",
+        f"Activity: leave {coverage:.0%} of totals unflagged (validation_policy)",
+        lines=(policy.DEFAULT_TARGETS["min_accuracy"], coverage),
     )
     return {"folder": str(folder)}
 
@@ -1908,15 +1927,15 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path)
     parser.add_argument("--stage")
-    parser.add_argument("--activity-target", type=float)
+    parser.add_argument("--activity-coverage", type=float)
     parser.add_argument("--byod-inspect", type=Path)
     parser.add_argument("--byod-mode", default="inference")
     args = parser.parse_args(argv)
     if args.byod_inspect is not None:
         print(json.dumps(inspect_byod(args.byod_inspect, args.byod_mode)))
         return
-    if args.activity_target is not None:
-        print(json.dumps(run_activity(Run(args.root), args.activity_target)))
+    if args.activity_coverage is not None:
+        print(json.dumps(run_activity(Run(args.root), args.activity_coverage)))
         return
     run_stage(args.root, args.stage)
 

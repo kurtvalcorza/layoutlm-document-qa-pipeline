@@ -164,9 +164,39 @@ def review_metrics(
     }
 
 
-def activity(predictions, references, ids, system_id: str, min_accuracy: float) -> dict[str, Any]:
-    """Change-one-thing: only the minimum accuracy target differs; validation_policy data only."""
-    if not (0.5 <= min_accuracy <= 1.0) or math.isnan(min_accuracy):
-        raise ValueError("The activity accuracy target must be between 0.5 and 1.0")
-    targets = {**DEFAULT_TARGETS, "min_accuracy": min_accuracy}
-    return select(predictions, references, ids, system_id, targets)
+def coverage_operating_point(predictions, references, ids, system_id: str, coverage: float) -> dict[str, Any]:
+    """Change-one-thing: leave the top-scored share of totals unflagged; validation_policy data only.
+
+    The one changed setting is the requested coverage. The highest threshold whose coverage reaches it is
+    used, so the system leaves its best-scored totals unflagged and refers the rest. There is no accuracy
+    target and no feasibility test: the activity shows what a coverage costs in unflagged errors. When the
+    eligible totals cannot reach the request, every eligible total is accepted and ``reached_requested``
+    is false. The canonical policy is never touched.
+    """
+    if math.isnan(coverage) or not (0.05 <= coverage <= 1.0):
+        raise ValueError("The activity coverage must be between 0.05 and 1.0 (for example 0.30)")
+    rows = sweep(predictions, references, ids)
+    candidates = [r for r in rows if r["threshold"] is not None]
+    reaching = [r for r in candidates if r["coverage"] is not None and r["coverage"] >= coverage]
+    if reaching:
+        best = max(reaching, key=lambda r: r["threshold"])
+    elif candidates:
+        best = min(candidates, key=lambda r: r["threshold"])  # accept every eligible total
+    else:
+        best = next(r for r in rows if r["kind"] == "refer_all")
+    point = {
+        "system_id": system_id,
+        "requested_coverage": coverage,
+        "reached_requested": bool(reaching),
+        "threshold": best["threshold"],
+        "selected_state": "coverage_operating_point" if best["threshold"] is not None else "refer_all",
+        "selection_role": "validation_policy",
+        "selection_support": best["scoreable"],
+        "accepted": best["accepted"],
+        "coverage": best["coverage"],
+        "empirical_accuracy": best["accuracy"],
+        "empirical_accuracy_interval_wilson": wilson(best["accepted"] - best["errors"], best["accepted"]),
+        "unflagged_wrong": best["errors"],
+        "score_semantics": "uncalibrated ranking score",
+    }
+    return {"point": point, "sweep": rows}

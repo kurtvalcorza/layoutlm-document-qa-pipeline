@@ -122,11 +122,50 @@ def test_review_metrics_selective_error_undefined_when_nothing_unflagged():
     assert out["unflagged_scored"] == 0 and out["selective_error"] is None and out["review_count"] == 10
 
 
-def test_activity_changes_only_the_accuracy_target():
-    preds, refs = policy_set(40, 3, wrong_score=0.899)
+def test_coverage_activity_accepts_the_top_scored_share_only():
+    preds, refs = policy_set(20, 30, wrong_score=0.1)
+    point = p.coverage_operating_point(preds, refs, sorted(refs), "s", 0.30)["point"]
+    assert point["reached_requested"] and point["accepted"] == 15 and point["coverage"] == pytest.approx(0.30)
+    assert point["empirical_accuracy"] == 1.0 and point["unflagged_wrong"] == 0
+    wider = p.coverage_operating_point(preds, refs, sorted(refs), "s", 0.60)["point"]
+    assert wider["accepted"] == 50 and wider["unflagged_wrong"] == 30  # ties at 0.1: the step admits all
+    for bad in (0.0, 0.01, 1.5, float("nan")):
+        with pytest.raises(ValueError):
+            p.coverage_operating_point(preds, refs, sorted(refs), "s", bad)
+
+
+def test_coverage_activity_exposes_confidently_wrong_totals():
+    preds, refs = policy_set(20, 30, wrong_score=0.95)  # every wrong total outranks every right one
+    point = p.coverage_operating_point(preds, refs, sorted(refs), "s", 0.30)["point"]
+    assert point["accepted"] == 30 and point["unflagged_wrong"] == 30 and point["empirical_accuracy"] == 0.0
+
+
+def test_coverage_activity_caps_at_the_eligible_totals():
+    preds, refs = policy_set(5, 0)
+    for i in range(5, 20):
+        refs[f"r{i}"] = refs_for(["x"])["r0"]
+        preds[f"r{i}"] = rec(pred(None, "parse_failed", None))  # hard failures are never eligible
+    point = p.coverage_operating_point(preds, refs, sorted(refs), "s", 0.50)["point"]
+    assert not point["reached_requested"] and point["accepted"] == 5
+    assert point["coverage"] == pytest.approx(0.25)
+
+
+def test_coverage_activity_contrasts_with_an_infeasible_canonical_policy():
+    """Review RC-M1: 49 usable totals and 20 correct cannot meet 95% on 25 accepted, at any ranking.
+
+    The canonical policy therefore refers all, and the old accuracy-target activity could never differ from
+    it. The coverage activity at the notebook's default still accepts totals and reports their errors.
+    """
+    import importlib.util
+
+    from _receipt_fixtures import TOOLS
+
+    spec = importlib.util.spec_from_file_location("gen", TOOLS / "build_receipt_capstone.py")
+    gen = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen)
+    preds, refs = policy_set(20, 29, wrong_score=0.5)
     canonical = p.select(preds, refs, sorted(refs), "s")["policy"]
-    lower = p.activity(preds, refs, sorted(refs), "s", 0.90)["policy"]
-    assert lower["targets"] == {**canonical["targets"], "min_accuracy": 0.90}
-    assert lower["coverage"] >= canonical["coverage"]
-    with pytest.raises(ValueError):
-        p.activity(preds, refs, sorted(refs), "s", 0.2)
+    assert not canonical["policy_feasible"] and canonical["accepted"] == 0
+    point = p.coverage_operating_point(preds, refs, sorted(refs), "s", gen.ACTIVITY_COVERAGE)["point"]
+    assert point["accepted"] >= 0.05 * 49 and point["accepted"] != canonical["accepted"]
+    assert canonical["targets"] == p.DEFAULT_TARGETS  # the canonical targets are unchanged

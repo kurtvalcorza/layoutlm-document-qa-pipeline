@@ -5,13 +5,14 @@ Each state is reported separately. A green CI run or a local CPU chain is not ho
 | State | Status | Evidence |
 | --- | --- | --- |
 | specified | done | [`receipt-capstone-spec.md`](receipt-capstone-spec.md) v1.0, preserved byte-for-byte |
-| built | done | Generated notebook `tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb`, revision `0.1.0-candidate`, from `tools/build_receipt_capstone.py` |
+| built | done | Generated notebook `tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb`, revision `0.2.0-candidate` (review fixes, 2026-10-02; `0.1.0-candidate` before), from `tools/build_receipt_capstone.py` |
+| notebook-reviewed | done; **Needs revision → fixes built, not yet hosted** | Notebook Review Framework v1 review of `ad47ef8` (blob `329fbfe8`), 2026-10-02: one blocker (RC-B1), one major (RC-M1, the earlier R1), five minor. Report and probes in [`reviews/2026-10-02-notebook-review/`](reviews/2026-10-02-notebook-review/); fixes in revision `0.2.0-candidate` (see *Review fixes* below) |
 | source-checked | done (local) | `ruff check src tests tools`; `python tools/build_receipt_capstone.py --check`; `python tools/validate_release_assets.py`; see the build record below |
 | CPU-tested | done (local, test doubles) | Full `pytest`, including the stage chain on synthetic receipts. The chain uses recorded OCR tokens and a tiny random LayoutLM, then is repeated once with a local Tesseract 5.5.0 build. These are mechanics checks only |
-| hosted-executed | **all journeys done at `7bd7f87`** (Kaggle T4, CORD stand-ins for BYOD) | 2026-09-29 clean-runtime Run all at `7bd7f87`: BYOD inference + refused ZIP (18/18 code cells) and BYOD adapt (17/17), each also repeating the canonical path with results identical to the `78ef7c3` default run. BYOD used CORD stand-ins whose OCR came from the cache, so fresh OCR of new BYOD images is not evidenced. A maintainer-supplied Colab T4 default run of `7bd7f87` reproduces the Kaggle results exactly. No BYOD run on real learner receipts yet. See *Recorded executions* |
+| hosted-executed | **`0.1.0-candidate`: all journeys done at `7bd7f87`** (Kaggle T4, CORD stand-ins for BYOD); **`0.2.0-candidate`: default journey + §13 activity done at `4b950a1`** (maintainer-supplied Colab T4, 2026-10-02); BYOD, a second activity coverage and the refused ZIP not yet run at this revision | 2026-09-29 clean-runtime Run all at `7bd7f87`: BYOD inference + refused ZIP (18/18 code cells) and BYOD adapt (17/17), each also repeating the canonical path with results identical to the `78ef7c3` default run. BYOD used CORD stand-ins whose OCR came from the cache, so fresh OCR of new BYOD images is not evidenced. A maintainer-supplied Colab T4 default run of `7bd7f87` reproduces the Kaggle results exactly. No BYOD run on real learner receipts yet. See *Recorded executions* |
 | annotation-reviewed | **not started** | [`receipt-annotation-audit.md`](receipt-annotation-audit.md): no human audit performed |
-| release-qualified | **no** | Needs the hosted run, a BYOD positive run and a BYOD negative case, measured resources, and the annotation audit |
-| published / merged | **no** | Draft PR only; no merge authority implied |
+| release-qualified | **no** | Needs a hosted run of `0.2.0-candidate` covering every journey, a BYOD run on images OCR has not seen, and the annotation audit |
+| published / merged | `0.1.0-candidate` merged | PR #9 merged to `main` as `ad47ef8` on 2026-09-29 (notebook blob `329fbfe8`). The `0.2.0-candidate` review fixes are on `fix/receipt-capstone-review`, not merged. A merge is not release qualification |
 
 ## Build record — 2026-09-28 (local Windows workstation, CPU only)
 
@@ -49,6 +50,7 @@ Record each executed notebook, pass or fail, under `docs/execution-evidence/<dat
 | 2026-09-29 | `7bd7f87` / `329fbfe8` | Kaggle Tesla T4 (same kernel, v5) | canonical + BYOD inference (12 stand-ins) + refused ZIP | 1111.3 s | **PASSED**: 18/18 code cells ok, including 1 appended harness cell |
 | 2026-09-29 | `7bd7f87` / `329fbfe8` | Kaggle Tesla T4 (same kernel, v6) | canonical + BYOD adapt (133 stand-ins) | 1125.8 s | **PASSED**: 17/17 code cells ok |
 | 2026-09-29 | `7bd7f87` / `329fbfe8` | Maintainer-supplied Google Colab Tesla T4 (2 CPUs) | default + change-one-thing activity (0.90) | stages ≈1540 s + 97 s install | **PASSED**: 17/17 code cells ok; adapter bytes identical to Kaggle |
+| 2026-10-02 | `4b950a1` / `3ba1234a` (`0.2.0-candidate`) | Maintainer-supplied Google Colab Tesla T4 (2 CPUs) | default + §13 coverage activity (0.30) | stages 1514.7 s + 98 s install | **PASSED**: 17/17 code cells ok; default results identical to `0.1.0-candidate`; the activity shows a contrast |
 
 ### Kaggle T4 clean-runtime execution of revision `fc553d4` — 2026-09-29
 
@@ -165,3 +167,49 @@ The R6 fix (`7bd7f87`: an OCR cache hit keeps the current record's `receipt_id`)
 - **Resources.** OCR 1,096 s on 2 CPUs (536 s on Kaggle's 4); stage total ≈1,540 s plus the 97 s install. Peak GPU allocation 2.15 GiB (train); peak RSS 3.28 GiB (prepare).
 - **Journeys.** Default Run all: **PASS**. Change-one-thing activity: PASS (mechanics), with no contrast (R1). BYOD and `DOWNLOAD_RESULTS`: not assessed in this run.
 - **Evidence boundary.** Saved outputs were inspected; execution was not independently repeated. This run is a second runtime family for the default journey, not new BYOD evidence.
+
+## Review fixes — revision `0.2.0-candidate` (2026-10-02)
+
+A Notebook Review Framework v1 review of `ad47ef8` (notebook blob `329fbfe8`) concluded **Needs revision**. The report, its probes and the fix report are archived in [`reviews/2026-10-02-notebook-review/`](reviews/2026-10-02-notebook-review/). Each fix has a regression test in `tests/test_receipt_review_fixes.py`.
+
+| Finding | Severity | Fix |
+| --- | --- | --- |
+| RC-B1 the Colab badge pointed at the deleted feature branch and opened an error | Blocker | `BRANCH_FOR_BADGE = "main"` |
+| RC-M1 the review-policy activity could never differ from the refer-all canonical policy (the earlier **R1**) | Major | Maintainer decision (2026-10-02): keep the canonical 95% / 50% / 25 targets; the §13 activity now varies the share of `validation_policy` totals left unflagged (`ACTIVITY_COVERAGE`, default 0.30) and reports accuracy and wrong unflagged totals per system. §8, §13 and §15 text rewritten; the infeasible "90% may make a policy feasible" answer removed. Deviation 17 in [`receipt-capstone.md`](receipt-capstone.md) |
+| RC-m1 the failure panel filed OCR misreads (`BOO`) as numeric ambiguity | Minor | `panel_category`: `parse_failed` is an OCR loss when not recoverable and an extraction error when recoverable; §10 defines every category |
+| RC-m2 no rerun instructions for the §1 controls | Minor | §1, §13 and §14 tell the learner to run the controls cell again; the "BYOD is off" message says how |
+| RC-m3 stale learner text after the hosted runs | Minor | Measured 2026-09-29 runtimes (labelled, with environment) in §1; status line and troubleshooting updated |
+| RC-m4 booleans displayed as `1.0000` / `0.0000` | Minor | `_fmt` renders `true` / `false` |
+| RC-m5 this ladder and note 16 described the pre-merge state | Minor | Ladder rows and note 16 updated |
+
+Suggestions RC-S1–S3 are not addressed. R1 is resolved by RC-M1 as a design change. The other earlier dispositions are unchanged.
+
+**User-visible changes.** The control `ACTIVITY_TARGET` is replaced by `ACTIVITY_COVERAGE`; the runner option `--activity-target` by `--activity-coverage`; activity outputs move from `outputs/activity/target_<x>/` to `outputs/activity/coverage_<x>/`, with new columns (`unflagged_wrong`, `accuracy_interval`, `reached_requested`). The failure panel may assign a different receipt to `ocr_loss`, `extraction_error` and `numeric_ambiguity`. Training, the review targets, policy selection and the test evaluation are unchanged in logic, but the revision string is part of the selection record and bundle manifest, so their digests change.
+
+
+**Carrier line fix (`4b950a1`).** Opening the notebook from GitHub made Colab unresponsive: the embedded-sources cell held every carried file on one 1,184,956-character line. Each file is now written as short string pieces that concatenate to identical text, so the carried bytes and their SHA-256 values are unchanged. The longest line is 1,705 characters, and `test_no_cell_has_a_line_long_enough_to_freeze_colab` guards it. After the push, a signed-out Colab tab loaded all 42 cells with a longest main-thread stall of 727 ms; before the fix the stall exceeded 45 s.
+
+### Maintainer-supplied Colab execution of revision `4b950a1` (`0.2.0-candidate`), 2026-10-02
+
+- **File.** [`execution-evidence/2026-10-02/receipt_capstone_4b950a1_colab-t4.ipynb`](execution-evidence/2026-10-02/receipt_capstone_4b950a1_colab-t4.ipynb), SHA-256 `a8f538006240542d60812b5c1353244d9159053a1c6c7c63d45f641a8eb0d56c`, a byte-for-byte copy of the download.
+- **Source match.** 42/42 cells with the same ids and order as the PR-head notebook (blob `3ba1234a`). The only difference is the `# @title` line Colab inserts at the top of the collapsed `code-05`; it is a comment, and every other line of every cell is identical. All controls were at their defaults (`ACTIVITY_COVERAGE = 0.30`, BYOD off). Execution counts run 1..17 with no errors: one Run all.
+- **Runtime.** Google Colab, Tesla T4, 2 CPUs. Isolated CPython 3.12.12, torch 2.9.1+cu128 (CUDA 12.8), transformers 4.57.6; environment ready in 98 s. Tesseract 5.5.0 (leptonica 1.83.1), `eng+ind`, `qualifying_runtime: true`.
+- **Default results are identical to `0.1.0-candidate`.** Adapter SHA-256 `da69be11…` (byte-identical to the 2026-09-29 Colab and Kaggle runs); 636 aligned examples from 378 receipts; validation_model EM 0.347 / 0.367 / 0.408 / 0.408, epoch 3 selected; test total correct 35 / 35 / 28 of 94 (adapted / frozen / rules); adapted − frozen 0.000 [−0.053, 0.053]; every system refer-all at the canonical targets; replay of 3 receipts parity PASS; results ZIP 32 members, CRC and digests pass. Selection record `7272dcbfe2ae98ea`: its digest differs because the record holds the revision string and the freeze time.
+- **RC-M1 fixed (activity).** `activity/coverage_0.30/`: at 30% coverage each system leaves 15 of 49 scoreable `validation_policy` totals unflagged, against 0 under the canonical policy. Rules: accuracy 0.933, 1 wrong total unflagged. Frozen LayoutLM: 0.800, 3 wrong. Adapted LayoutLM: 0.867, 2 wrong. The figure marks each operating point at the 30% line. The best-ranked system at low coverage (rules) is not the one with the best overall EM, which is the comparison §13 asks the learner to predict.
+- **RC-m1 fixed (panel).** `numeric_ambiguity` is now `cord-v2:test:0062`: OCR split the total into `48,` and `000`, and the grammar refused to guess (`ambiguous`). `ocr_loss` is `test:0098`; the other categories are unchanged.
+- **RC-m4 fixed.** `all_parity`, `labels_supplied` and `test_scored_before_freeze` display as `true` / `false`.
+- **Resources.** OCR 1,096.8 s; stage total 1,514.7 s; peak GPU allocation 2.15 GiB (train); peak RSS 3.82 GiB (prepare).
+- **Evidence boundary.** Saved outputs and figures were inspected; execution was not independently repeated.
+
+| Journey at `4b950a1` | Verdict |
+| --- | --- |
+| Clean default Run all | **PASS**; results identical to `0.1.0-candidate` |
+| Active learning (§13 at the default 0.30) | **PASS**: visible contrast with the canonical policy |
+| Active learning, second coverage via the documented rerun step | not assessed in this run |
+| Reuse and recovery (BYOD inference / adapt, refused ZIP, `DOWNLOAD_RESULTS`) | not assessed in this run; the "BYOD is off" message printed the new instruction |
+| First-time learner | source inspection only (fix report re-read); no learner-facing problem found in the executed outputs |
+| Opening from GitHub in Colab | **PASS** after the carrier fix (see above) |
+
+Learner-facing polish seen in the outputs, not fixed: Wilson intervals print at full float precision (`[0.7018347012621998, …]`), and panel titles show a missing amount as `None` rather than `undefined`.
+
+**Still open before promotion.** A second-coverage activity run and the BYOD journeys at this revision, a BYOD run on images OCR has not seen, the annotation audit, and a human promotion decision. Status stays **Candidate**.

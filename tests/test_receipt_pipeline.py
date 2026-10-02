@@ -4,6 +4,7 @@ Synthetic receipts, recorded OCR tokens and a tiny random LayoutLM: this proves 
 refuse tampering and keep references out of every fit/selection step. It is not performance evidence.
 """
 
+import csv
 import json
 import shutil
 import subprocess
@@ -169,8 +170,14 @@ def test_evaluation_refuses_changes_after_freeze(full_run: Path, tmp_path: Path,
 
 def test_activity_writes_separately_and_leaves_canonical_policy(full_run: Path):
     before = (full_run / "stages" / "select_policy" / "review_policy.json").read_bytes()
-    run(full_run, "--activity-target", "0.9")
-    assert (full_run / "outputs" / "activity" / "target_0.90" / "activity_comparison.csv").is_file()
+    run(full_run, "--activity-coverage", "0.3")
+    folder = full_run / "outputs" / "activity" / "coverage_0.30"
+    with (folder / "activity_comparison.csv").open(encoding="utf-8", newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    assert {r["setting"] for r in rows} == {"canonical_95pct_policy", "activity_coverage_0.30"}
+    assert len(rows) == 6 and (folder / "activity.png").is_file()
+    activity = json.loads((folder / "activity.json").read_text(encoding="utf-8"))
+    assert activity["test_used"] is False and activity["requested_coverage"] == 0.3
     assert (full_run / "stages" / "select_policy" / "review_policy.json").read_bytes() == before
     run(full_run, "--stage", "report")  # the canonical chain still verifies
 
