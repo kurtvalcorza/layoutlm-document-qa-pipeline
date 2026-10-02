@@ -187,7 +187,7 @@ Suggestions RC-S1–S3 are not addressed. R1 is resolved by RC-M1 as a design ch
 **User-visible changes.** The control `ACTIVITY_TARGET` is replaced by `ACTIVITY_COVERAGE`; the runner option `--activity-target` by `--activity-coverage`; activity outputs move from `outputs/activity/target_<x>/` to `outputs/activity/coverage_<x>/`, with new columns (`unflagged_wrong`, `accuracy_interval`, `reached_requested`). The failure panel may assign a different receipt to `ocr_loss`, `extraction_error` and `numeric_ambiguity`. Training, the review targets, policy selection and the test evaluation are unchanged in logic, but the revision string is part of the selection record and bundle manifest, so their digests change.
 
 
-**Carrier line fix (`4b950a1`).** Opening the notebook from GitHub made Colab unresponsive: the embedded-sources cell held every carried file on one 1,184,956-character line. Each file is now written as short string pieces that concatenate to identical text, so the carried bytes and their SHA-256 values are unchanged. The longest line is 1,705 characters, and `test_no_cell_has_a_line_long_enough_to_freeze_colab` guards it. After the push, a signed-out Colab tab loaded all 42 cells with a longest main-thread stall of 727 ms; before the fix the stall exceeded 45 s.
+**Carrier line fix (`4b950a1`).** Opening the notebook from GitHub made Colab unresponsive: the embedded-sources cell held every carried file on one 1,184,956-character line. Each file is now written as short string pieces that concatenate to identical text, so the carried bytes and their SHA-256 values are unchanged. The longest line is 1,705 characters, and `test_no_cell_has_a_line_long_enough_to_freeze_colab` guards it. Evidence: the maintainer reported the page unresponsive before this commit and loading normally after it, and then completed the run recorded below. An earlier version of this note quoted agent-side stall timings (over 45 s before, 727 ms after); they were taken in a hidden browser pane, where Colab does not render and timers are throttled, so they are withdrawn as evidence.
 
 ### Maintainer-supplied Colab execution of revision `4b950a1` (`0.2.0-candidate`), 2026-10-02
 
@@ -208,7 +208,7 @@ Suggestions RC-S1–S3 are not addressed. R1 is resolved by RC-M1 as a design ch
 | Active learning, second coverage via the documented rerun step | not assessed in this run |
 | Reuse and recovery (BYOD inference / adapt, refused ZIP, `DOWNLOAD_RESULTS`) | not assessed in this run; the "BYOD is off" message printed the new instruction |
 | First-time learner | source inspection only (fix report re-read); no learner-facing problem found in the executed outputs |
-| Opening from GitHub in Colab | **PASS** after the carrier fix (see above) |
+| Opening from GitHub in Colab | **PASS** after the carrier fix (maintainer observation; see above) |
 
 Learner-facing polish seen in the outputs, not fixed: Wilson intervals print at full float precision (`[0.7018347012621998, …]`), and panel titles show a missing amount as `None` rather than `undefined`.
 
