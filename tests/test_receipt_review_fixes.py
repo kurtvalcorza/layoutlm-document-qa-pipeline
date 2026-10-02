@@ -118,3 +118,12 @@ def test_rc_m5_evidence_records_are_current():
     assert "Draft PR only" not in ladder and "ad47ef8" in ladder
     notes = (ROOT / "docs" / "receipt-capstone.md").read_text(encoding="utf-8")
     assert "Switch `BRANCH_FOR_BADGE` to `main` and regenerate in the merge commit" not in notes
+
+
+def test_no_cell_has_a_line_long_enough_to_freeze_colab(generator):
+    """The 1.18 MB single-line carrier made Colab unresponsive while opening the notebook (2026-10-02)."""
+    notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
+    longest = max(len(line) for c in notebook["cells"] for line in "".join(c["source"]).split("\n"))
+    assert longest <= 2 * generator.CARRIER_PIECE, longest
+    files = {"a.json": "x" * 2500, "b.py": "line\n" * 3, "empty.txt": ""}
+    assert ast.literal_eval(generator.carried_literal(files)) == files

@@ -33,6 +33,30 @@ def sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+# Longest physical line allowed in the carrier cell. A single 1.18 MB line froze Colab's editor
+# (the page went unresponsive while opening the notebook), so every carried file is split into short
+# string pieces that Python concatenates back into the identical text.
+CARRIER_PIECE = 1000
+
+
+def carried_literal(files: dict[str, str]) -> str:
+    """A dict literal of the carried files with no physical line longer than about CARRIER_PIECE characters.
+
+    Each file is an implicitly concatenated run of string pieces, one per source line (long lines, such as
+    the compact JSON manifests, are cut every CARRIER_PIECE characters). ``ast.literal_eval`` and the
+    notebook both read back exactly ``files``, so the carried bytes and their SHA-256 values are unchanged.
+    """
+    out = ["{"]
+    for name, text in files.items():
+        out.append(f"    {name!r}: (")
+        for line in text.splitlines(keepends=True) or [""]:
+            for start in range(0, max(len(line), 1), CARRIER_PIECE):
+                out.append(f"        {line[start:start + CARRIER_PIECE]!r}")
+        out.append("    ),")
+    out.append("}")
+    return "\n".join(out)
+
+
 def carried_files() -> dict[str, str]:
     files = {"capstone.py": (ROOT / "tools" / "receipt_capstone.py").read_text(encoding="utf-8")}
     for name in MODULES:
@@ -311,7 +335,7 @@ Network hosts: PyPI (pinned `uv` wheel and hashed lock), the CPython build `uv` 
 **Input:** a fresh T4 runtime. **System:** verified carrier, locked Python environment, pinned OCR and model. **Output:** a unique run directory and identity reports. Integrity failures stop execution; do not disable checks to continue.
 """)
     code(PREFLIGHT, cellView="form")
-    code("NOTEBOOK_REVISION = " + repr(NOTEBOOK_REVISION) + "\nCARRIED_FILES = " + repr(files) + "\nCARRIED_HASHES = "
+    code("NOTEBOOK_REVISION = " + repr(NOTEBOOK_REVISION) + "\nCARRIED_FILES = " + carried_literal(files) + "\nCARRIED_HASHES = "
          + repr({name: sha(text) for name, text in files.items()}) + "\n" + CARRIER,
          cellView="form", dimer={"embedded_sources": True})
     code(BOOTSTRAP + HELPERS, cellView="form")
