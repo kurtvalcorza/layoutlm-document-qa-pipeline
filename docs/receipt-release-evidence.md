@@ -5,13 +5,14 @@ Each state is reported separately. A green CI run or a local CPU chain is not ho
 | State | Status | Evidence |
 | --- | --- | --- |
 | specified | done | [`receipt-capstone-spec.md`](receipt-capstone-spec.md) v1.0, preserved byte-for-byte |
-| built | done | Generated notebook `tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb`, revision `0.1.0-candidate`, from `tools/build_receipt_capstone.py` |
+| built | done | Generated notebook `tutorials/DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb`, revision `0.2.0-candidate` (review fixes, 2026-10-02; `0.1.0-candidate` before), from `tools/build_receipt_capstone.py` |
+| notebook-reviewed | done; **Needs revision → fixes built, not yet hosted** | Notebook Review Framework v1 review of `ad47ef8` (blob `329fbfe8`), 2026-10-02: one blocker (RC-B1), one major (RC-M1, the earlier R1), five minor. Report and probes in [`reviews/2026-10-02-notebook-review/`](reviews/2026-10-02-notebook-review/); fixes in revision `0.2.0-candidate` (see *Review fixes* below) |
 | source-checked | done (local) | `ruff check src tests tools`; `python tools/build_receipt_capstone.py --check`; `python tools/validate_release_assets.py`; see the build record below |
 | CPU-tested | done (local, test doubles) | Full `pytest`, including the stage chain on synthetic receipts. The chain uses recorded OCR tokens and a tiny random LayoutLM, then is repeated once with a local Tesseract 5.5.0 build. These are mechanics checks only |
-| hosted-executed | **all journeys done at `7bd7f87`** (Kaggle T4, CORD stand-ins for BYOD) | 2026-09-29 clean-runtime Run all at `7bd7f87`: BYOD inference + refused ZIP (18/18 code cells) and BYOD adapt (17/17), each also repeating the canonical path with results identical to the `78ef7c3` default run. BYOD used CORD stand-ins whose OCR came from the cache, so fresh OCR of new BYOD images is not evidenced. A maintainer-supplied Colab T4 default run of `7bd7f87` reproduces the Kaggle results exactly. No BYOD run on real learner receipts yet. See *Recorded executions* |
+| hosted-executed | **`0.1.0-candidate`: all journeys done at `7bd7f87`** (Kaggle T4, CORD stand-ins for BYOD); **`0.2.0-candidate`: not yet executed** | 2026-09-29 clean-runtime Run all at `7bd7f87`: BYOD inference + refused ZIP (18/18 code cells) and BYOD adapt (17/17), each also repeating the canonical path with results identical to the `78ef7c3` default run. BYOD used CORD stand-ins whose OCR came from the cache, so fresh OCR of new BYOD images is not evidenced. A maintainer-supplied Colab T4 default run of `7bd7f87` reproduces the Kaggle results exactly. No BYOD run on real learner receipts yet. See *Recorded executions* |
 | annotation-reviewed | **not started** | [`receipt-annotation-audit.md`](receipt-annotation-audit.md): no human audit performed |
-| release-qualified | **no** | Needs the hosted run, a BYOD positive run and a BYOD negative case, measured resources, and the annotation audit |
-| published / merged | **no** | Draft PR only; no merge authority implied |
+| release-qualified | **no** | Needs a hosted run of `0.2.0-candidate` covering every journey, a BYOD run on images OCR has not seen, and the annotation audit |
+| published / merged | `0.1.0-candidate` merged | PR #9 merged to `main` as `ad47ef8` on 2026-09-29 (notebook blob `329fbfe8`). The `0.2.0-candidate` review fixes are on `fix/receipt-capstone-review`, not merged. A merge is not release qualification |
 
 ## Build record — 2026-09-28 (local Windows workstation, CPU only)
 
@@ -165,3 +166,23 @@ The R6 fix (`7bd7f87`: an OCR cache hit keeps the current record's `receipt_id`)
 - **Resources.** OCR 1,096 s on 2 CPUs (536 s on Kaggle's 4); stage total ≈1,540 s plus the 97 s install. Peak GPU allocation 2.15 GiB (train); peak RSS 3.28 GiB (prepare).
 - **Journeys.** Default Run all: **PASS**. Change-one-thing activity: PASS (mechanics), with no contrast (R1). BYOD and `DOWNLOAD_RESULTS`: not assessed in this run.
 - **Evidence boundary.** Saved outputs were inspected; execution was not independently repeated. This run is a second runtime family for the default journey, not new BYOD evidence.
+
+## Review fixes — revision `0.2.0-candidate` (2026-10-02)
+
+A Notebook Review Framework v1 review of `ad47ef8` (notebook blob `329fbfe8`) concluded **Needs revision**. The report, its probes and the fix report are archived in [`reviews/2026-10-02-notebook-review/`](reviews/2026-10-02-notebook-review/). Each fix has a regression test in `tests/test_receipt_review_fixes.py`.
+
+| Finding | Severity | Fix |
+| --- | --- | --- |
+| RC-B1 the Colab badge pointed at the deleted feature branch and opened an error | Blocker | `BRANCH_FOR_BADGE = "main"` |
+| RC-M1 the review-policy activity could never differ from the refer-all canonical policy (the earlier **R1**) | Major | Maintainer decision (2026-10-02): keep the canonical 95% / 50% / 25 targets; the §13 activity now varies the share of `validation_policy` totals left unflagged (`ACTIVITY_COVERAGE`, default 0.30) and reports accuracy and wrong unflagged totals per system. §8, §13 and §15 text rewritten; the infeasible "90% may make a policy feasible" answer removed. Deviation 17 in [`receipt-capstone.md`](receipt-capstone.md) |
+| RC-m1 the failure panel filed OCR misreads (`BOO`) as numeric ambiguity | Minor | `panel_category`: `parse_failed` is an OCR loss when not recoverable and an extraction error when recoverable; §10 defines every category |
+| RC-m2 no rerun instructions for the §1 controls | Minor | §1, §13 and §14 tell the learner to run the controls cell again; the "BYOD is off" message says how |
+| RC-m3 stale learner text after the hosted runs | Minor | Measured 2026-09-29 runtimes (labelled, with environment) in §1; status line and troubleshooting updated |
+| RC-m4 booleans displayed as `1.0000` / `0.0000` | Minor | `_fmt` renders `true` / `false` |
+| RC-m5 this ladder and note 16 described the pre-merge state | Minor | Ladder rows and note 16 updated |
+
+Suggestions RC-S1–S3 are not addressed. R1 is resolved by RC-M1 as a design change. The other earlier dispositions are unchanged.
+
+**User-visible changes.** The control `ACTIVITY_TARGET` is replaced by `ACTIVITY_COVERAGE`; the runner option `--activity-target` by `--activity-coverage`; activity outputs move from `outputs/activity/target_<x>/` to `outputs/activity/coverage_<x>/`, with new columns (`unflagged_wrong`, `accuracy_interval`, `reached_requested`). The failure panel may assign a different receipt to `ocr_loss`, `extraction_error` and `numeric_ambiguity`. Training, the review targets, policy selection and the test evaluation are unchanged in logic, but the revision string is part of the selection record and bundle manifest, so their digests change.
+
+**Evidence boundary.** These fixes are source-checked and CPU-tested (test doubles) only. No hosted run of `0.2.0-candidate` exists; the hosted evidence above is for `0.1.0-candidate`. Status stays **Candidate**.

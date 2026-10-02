@@ -17,10 +17,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME = "DIMER_Small_Business_Receipt_Intelligence_Capstone.ipynb"
-NOTEBOOK_REVISION = "0.1.0-candidate"
+NOTEBOOK_REVISION = "0.2.0-candidate"
 REPOSITORY = "kurtvalcorza/layoutlm-document-qa-pipeline"
-# The badge must point at a branch where the notebook exists; switch to "main" in the merge commit.
-BRANCH_FOR_BADGE = "feat/small-business-receipt-capstone"
+# The badge must point at the default branch: feature branches are deleted after merge (review RC-B1).
+BRANCH_FOR_BADGE = "main"
+# Default coverage for the §13 activity, read off the validation_policy sweep of the 2026-09-29 hosted runs
+# (revision 0.1.0-candidate, adapter da69be11): every system has eligible totals there, so the activity
+# always shows a contrast with the refer-all canonical policy. Validation data only; test is never used.
+ACTIVITY_COVERAGE = 0.30
 MODULES = ("receipt_common.py", "receipt_fields.py", "receipt_data.py", "receipt_ocr.py", "receipt_models.py",
            "receipt_training.py", "receipt_metrics.py", "receipt_policy.py", "receipt_artifact.py", "receipt_byod.py")
 
@@ -153,6 +157,8 @@ from IPython.display import HTML, Image, Markdown, display
 def _fmt(value):
     if value is None or value == '':
         return 'undefined'
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
     try:
         number = float(value)
     except (TypeError, ValueError):
@@ -226,7 +232,7 @@ def build() -> dict:
 [![DIMER](https://img.shields.io/badge/DIMER-Applied_AI-165b80)](https://training.dimer1.asti.dost.gov.ph/signin)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{REPOSITORY}/blob/{BRANCH_FOR_BADGE}/tutorials/{NAME})
 
-**Profile:** E2E · **Mode:** GUIDED · **Notebook standard:** 2.2 · **Revision:** {NOTEBOOK_REVISION} · **Release status:** Candidate (built; hosted qualification pending).
+**Profile:** E2E · **Mode:** GUIDED · **Notebook standard:** 2.2 · **Revision:** {NOTEBOOK_REVISION} · **Release status:** Candidate (hosted runs recorded; not release-qualified).
 
 **Central question.** Can an AI-assisted workflow extract receipt amounts reliably, and how does referring uncertain totals for human review change the error rate among the totals left unflagged?
 
@@ -238,7 +244,7 @@ This self-paced notebook starts from receipt **photographs**, recognises their w
 | --- | --- | --- |
 | Receipt image | Image checks → Tesseract OCR (words, boxes, confidences) → three extractors: **A** fixed keyword rules, **B** frozen LayoutLM document QA, **C** receipt-adapted LayoutLM → conservative amount normalisation → total-review policy | CSV/JSON records, evaluation evidence, a trained adapter and a fresh-process reload check |
 
-It answers three separate questions: (1) how accurately the complete image → OCR → extraction workflow recovers annotated amounts; (2) whether bounded fine-tuning improves on a transparent rule baseline and the unchanged pretrained model; and (3) what coverage–error trade-off a validation-selected review policy achieves on held-out receipts.
+It answers three separate questions: (1) how accurately the complete image → OCR → extraction workflow recovers annotated amounts; (2) whether bounded fine-tuning improves on a transparent rule baseline and the unchanged pretrained model; and (3) what referring uncertain totals costs and saves: whether any system meets a strict, validation-selected review policy on held-out receipts, and how many wrong totals each system leaves unflagged when a chosen share of totals is accepted.
 
 **What this notebook does not establish.** The data are CORD v2, a public sample of **Indonesian** receipts (CC BY 4.0). Nothing here supports a claim about Philippine businesses, unseen merchants or templates, production use or accounting-grade accuracy. It does not parse line items, merchants, dates or handwriting, convert currencies, check tax compliance, reconcile bank records or post to a ledger. A missing annotation never means a charge was absent or zero. A `total_unflagged` record is **not** human-verified. Readable OCR, a confident-looking answer and a numerically correct business record are three different achievements; keeping them apart is the main lesson.
 
@@ -249,7 +255,7 @@ It answers three separate questions: (1) how accurately the complete image → O
 3. compare a rule baseline, a frozen model and a genuinely fine-tuned model on the same receipts;
 4. explain why an extractive model cannot restore a digit that OCR failed to recognise;
 5. interpret total exact match, annotation-conditional field accuracy, review coverage and selective error;
-6. change one review-policy setting on validation receipts without touching the held-out experiment;
+6. change one review setting (the share of totals left unflagged) on validation receipts without touching the held-out experiment;
 7. export a trained adapter and reconstruct matching predictions from serialized files; and
 8. name the additional evidence needed before using such a workflow on local business records.
 
@@ -262,10 +268,11 @@ It answers three separate questions: (1) how accurately the complete image → O
 1. Select **Runtime → Change runtime type → T4 GPU**, start a fresh runtime, then **Runtime → Run all**. No login, token, upload, repository clone, DIMER service or restart is needed; the default run never opens a file dialog.
 2. Read each **Predict** prompt before its results appear. Worked answers are folded under *Show a worked answer*.
 3. Infrastructure cells are collapsed. Their carried source stays inspectable; every stage runs in a separate process and writes a success receipt that later stages verify.
+4. **Changing a control later** (§13 activity, §14 BYOD): edit the field in the controls cell below, **run that controls cell again** (it prints the values now in effect), then run the section that uses it. Editing a form field alone does not change the running notebook's values.
 
 **Roadmap:** setup → data card → OCR → rules → frozen model → alignment and training → review policy → freeze and test → diagnose → export → fresh reload → change one thing → optional BYOD → conclusion.
 
-**Expected cost.** Everything is measured by the run itself (see the runtime table in §12): downloads (~2.3 GB of CORD shards, CUDA wheels, a 0.5 GB checkpoint), OCR of all 1,000 source receipts on Colab's CPUs (usually the longest step), four training epochs and evaluation. No elapsed time is promised before a qualified hosted run has measured it.
+**Expected cost.** Downloads (~2.3 GB of CORD shards, CUDA wheels, a 0.5 GB checkpoint), OCR of 998 receipts on the runtime's CPUs, four training epochs and evaluation. *Measured once each, 2026-09-29, revision 0.1.0-candidate (same workload):* on Google Colab with a Tesla T4 and **2 CPUs**, the environment took 97 s and the stages about 1,540 s (about 26 minutes), of which OCR took 1,096 s; on Kaggle with a Tesla T4 and 4 CPUs, OCR took 536 s. These are single measurements, not guarantees: OCR time scales with the CPU count. Your own run's times appear in the runtime table in §12.
 
 ### Glossary
 
@@ -288,13 +295,13 @@ The controls below have safe defaults and never block **Run all**.
 """)
     code("""# @title Run controls (safe defaults)
 OUTPUT_DIR = 'receipt_capstone_outputs' # @param {type:'string'}
-ACTIVITY_TARGET = 0.90 # @param {type:'number'}
+ACTIVITY_COVERAGE = """ + f"{ACTIVITY_COVERAGE:.2f}" + """ # @param {type:'number'}
 USE_BYOD = False # @param {type:'boolean'}
 BYOD_MODE = 'inference' # @param ['inference', 'adapt']
 BYOD_PATH = '' # @param {type:'string'}
 BYOD_AUTHORIZED = False # @param {type:'boolean'}
 DOWNLOAD_RESULTS = False # @param {type:'boolean'}
-print('Controls set. BYOD is', 'on' if USE_BYOD else 'off (default).')""", cellView="form")
+print('Controls set. Activity coverage:', ACTIVITY_COVERAGE, '| BYOD is', ('on (' + BYOD_MODE + ')') if USE_BYOD else 'off (default).')""", cellView="form")
     md("""## 2. Setup — infrastructure (collapsed)
 
 These cells check the runtime, write the carried implementation (verified by SHA-256), create an isolated **Python 3.12** environment from a fully hashed dependency lock, install the pinned Tesseract OCR closure and verify the pinned base checkpoint. No DIMER package is installed and no source is downloaded.
@@ -317,7 +324,7 @@ Network hosts: PyPI (pinned `uv` wheel and hashed lock), the CPython build `uv` 
 | --- | --- | --- |
 | `train` | official train | gradient updates, keyword development, supervised OCR alignment |
 | `validation_model` | first 50 official validation IDs by hash | choosing the trained epoch |
-| `validation_policy` | remaining 50 | choosing review thresholds; the change-one-thing activity |
+| `validation_policy` | remaining 50 | choosing review thresholds; the change-one-thing coverage activity |
 | `test` | official test | one frozen evaluation of every predetermined system |
 
 The frozen source audit found two exact-pixel duplicate pairs inside training; the lexically later copy of each is excluded, giving **{counts['train']} / {counts['validation_model']} / {counts['validation_policy']} / {counts['test']}** receipts. Near-duplicates (same merchant or template) were **not** audited, so the split is not template-disjoint. Every shard and every row is re-hashed against the committed manifest; a changed byte stops the run.
@@ -387,12 +394,12 @@ The frozen recipe starts from a **fresh** pinned checkpoint (no earlier CORD ada
 
 **What changes when uncertain totals are referred?** A total always needs review when processing failed, no valid span exists, or the amount is unparsable or ambiguous. Otherwise it is left unflagged when its score reaches a system-specific threshold. Thresholds are chosen **only on `validation_policy` receipts**: maximise coverage subject to at least **95%** empirical accuracy, at least **50%** coverage and at least **25** unflagged receipts (illustrative teaching settings, not business service levels), searching every observed score plus accept-all and refer-all. If no threshold qualifies, the policy is **refer all** with `policy_feasible = false`; the target is never loosened automatically. States are `needs_review` and `total_unflagged` only — never "verified" or "approved".
 
-**Predict:** which system will reach the 95% target with the most coverage, and could a system with lower accuracy still achieve a usable policy?
+**Predict:** will any system keep at least 95% accuracy while leaving at least half of the totals unflagged? And are each system's highest-scoring totals its most reliable ones?
 """)
     code("run_stage('select_policy')\nshow_table('policy_selection.csv')\nshow_figure('policy_validation.png')")
-    md("""**Interpret:** each curve comes from about fifty receipts, so one decision moves accuracy by roughly two percentage points; the Wilson interval shows how uncertain the selected accuracy is. A feasible policy on validation is not a guarantee on new receipts, and an infeasible (refer-all) policy is a valid, reportable result.
+    md("""**Interpret:** read each curve from left to right: the left end is the system's highest-scoring totals, and moving right admits lower-scoring ones. Each curve comes from about fifty receipts, so one decision moves accuracy by roughly two percentage points; the Wilson interval shows how uncertain a selected accuracy is. The dotted lines mark the 95% accuracy and 50% coverage requirements: a feasible policy needs a point above the first and to the right of the second. A feasible policy on validation is not a guarantee on new receipts, and an infeasible (refer-all) policy is a valid, reportable result.
 
-<details><summary>Show a worked answer</summary>Coverage at a fixed accuracy target depends on how well a score *ranks* right answers above wrong ones, not on raw accuracy alone. A system with modest accuracy can still achieve useful coverage if its errors have low scores; a more accurate system can fail if its confident answers include errors.</details>
+<details><summary>Show a worked answer</summary>Coverage at a fixed accuracy target depends on how well a score *ranks* right answers above wrong ones, not on overall accuracy alone. Leaving half of the totals unflagged at 95% accuracy needs at least 95% × 50% ≈ 48% of all scoreable totals to be correct; when fewer are (compare the `validation_model` total EM from §7), no ranking can do it, so refer-all is the expected outcome. A curve that starts low at the far left means some of the system's most confident totals are wrong: its score is not a reliable signal for skipping review. A system with modest accuracy can still be safe at low coverage if its errors have low scores. §13 lets you choose the coverage and see the errors that come with it.</details>
 """)
     md("""## 9. Freeze, then test once
 
@@ -413,7 +420,17 @@ Before any test scoring, `selection_record.json` fixes the cohort, role and data
 
 **OCR recoverability (evaluator-only).** For usable references, is the correct amount present in a spatially compatible OCR span? The primary score is never filtered by it and no predictor sees it.
 
-**Failure panel.** After scores are fixed, one test receipt per category is chosen deterministically (success, OCR loss, extraction error, numeric ambiguity, failure/no candidate); an empty category is reported as empty rather than manufactured.
+**Failure panel.** After scores are fixed, one test receipt per category is chosen deterministically for the adapted system; an empty category is reported as empty rather than manufactured. Categories, checked in this order:
+
+| Category | Meaning |
+| --- | --- |
+| success | the total equals the reference |
+| failure or no candidate | processing failed or the system returned no amount at all |
+| numeric ambiguity | the chosen words hold an amount the grammar refuses to guess (`ambiguous`, `unsupported`: several amounts, percentages, signs, inconsistent separators) |
+| extraction error | the correct amount is in the OCR (recoverable) but the system chose other words, including words that are not an amount |
+| OCR loss | the correct amount is not in the OCR at all, so no extractor could have chosen it (for example `800` read as `BOO`) |
+
+Each panel draws the chosen words' boxes on the receipt, so you can trace the extracted total back to its OCR words.
 """)
     code("run_stage('diagnose')\nshow_table('reference_text_diagnostic.csv', limit=12)\nshow_table('ocr_recoverability.csv', limit=12)\nshow_table('failure_panel.csv')\nfor category in ('success', 'ocr_loss', 'extraction_error', 'numeric_ambiguity', 'failure_or_no_candidate'):\n    if (ROOT / 'outputs' / 'figures' / f'panel_{category}.png').exists():\n        show_figure(f'panel_{category}.png')")
     md("""**Interpret:** if a large share of test totals is *not recoverable* from OCR, no extractor could have got them right; improving OCR (or image capture) would matter more than a better extractor. Conditional EM on recoverable totals is secondary evidence only.
@@ -430,29 +447,31 @@ The export stage writes machine-readable records for the evaluation roles — `p
 A **new process** verifies the bundle's file set, sizes, digests, schema, tensor names/shapes and base identity *before* loading, loads a fresh verified checkpoint, applies only the allowed tensors, rebuilds OCR, questions, grammar, rules and policy from JSON, then re-runs three deterministically chosen held-out receipts through the whole image → OCR → record path with **no labels supplied**. OCR tokens, spans, amounts, parse states and review decisions must match exactly; scores within `atol=1e-6, rtol=1e-5`. These are demonstration replays of held-out images, not a second test set.
 """)
     code("run_stage('replay')\nshow_json('replay_report.json', keys=['pid', 'receipts', 'all_parity', 'labels_supplied', 'note'])\nshow_table('replay_records.csv')\nrun_stage('report')\nshow_table('runtime_summary.csv', limit=20)\nshow_json('archive_verification.json')\ndisplay(Markdown((ROOT / 'outputs' / 'summary.md').read_text(encoding='utf-8')))\nprint('Results ZIP (derived evidence + small bundle; no receipt images):', ROOT / 'outputs' / 'results.zip')\nif DOWNLOAD_RESULTS:\n    from google.colab import files as colab_files\n    colab_files.download(str(ROOT / 'outputs' / 'results.zip'))")
-    md("""## 13. Change one thing: the review accuracy target
+    md(f"""## 13. Change one thing: how many totals to leave unflagged
 
-**Predict → change one thing → run → observe → explain.** Only the minimum accuracy target changes (the `ACTIVITY_TARGET` control, default 0.90 instead of 0.95), on the cached `validation_policy` predictions. No training, no test data, and the canonical threshold, model, selection record and test results are untouched; results go to `outputs/activity/`.
+**Predict → change one thing → run → observe → explain.** The canonical policy demands 95% accuracy on at least half of the totals and may refer every total. Here the one changed setting is the **share of totals left unflagged** (the `ACTIVITY_COVERAGE` control, default {ACTIVITY_COVERAGE:.2f}): each system leaves its top-scored {ACTIVITY_COVERAGE:.0%} of scoreable `validation_policy` totals unflagged and refers the rest, with no accuracy requirement. The table puts each system's canonical row beside its activity row: `accepted` totals left unflagged, their `empirical_accuracy`, and `unflagged_wrong`, the wrong totals that would skip human review. No training and no test data are used; the canonical threshold, model, selection record and test results are untouched, and results go to `outputs/activity/coverage_<value>/`.
 
-**Predict:** lowering the target from 95% to 90% — how much coverage do you gain, and how many more errors are left unflagged?
+To try another value, edit `ACTIVITY_COVERAGE` in §1, run the §1 controls cell again, then run the next cell; each value gets its own folder. Values from 0.05 to 1.0 are accepted.
+
+**Predict:** at {ACTIVITY_COVERAGE:.0%} coverage, which system leaves the fewest wrong totals unflagged, and is it the system with the best overall exact match?
 """)
-    code("run_stage(None, '--activity-target', repr(float(ACTIVITY_TARGET)))\nfolder = ROOT / 'outputs' / 'activity' / f'target_{float(ACTIVITY_TARGET):.2f}'\nshow_table(str(folder.relative_to(ROOT / 'outputs') / 'activity_comparison.csv'))\ndisplay(Image(filename=str(folder / 'activity.png')))")
-    md("""**Explain:** a lower target admits lower-scoring totals, raising coverage and usually the number of wrong totals left unflagged. On about fifty validation receipts the change may be a handful of decisions; this is a teaching comparison, not an estimate of a real service level.
+    code("run_stage(None, '--activity-coverage', repr(float(ACTIVITY_COVERAGE)))\nfolder = ROOT / 'outputs' / 'activity' / f'coverage_{float(ACTIVITY_COVERAGE):.2f}'\nshow_table(str(folder.relative_to(ROOT / 'outputs') / 'activity_comparison.csv'))\ndisplay(Image(filename=str(folder / 'activity.png')))")
+    md("""**Explain:** the vertical dotted line is your chosen coverage and the open circles are each system's operating point; the horizontal line is the canonical 95% requirement. Leaving more totals unflagged admits lower-scoring ones, so accuracy among unflagged totals usually falls and `unflagged_wrong` rises. `reached_requested` showing False means the system had too few valid totals to reach your coverage, so all of them were accepted. On about fifty validation receipts each total moves accuracy by about two points; this is a teaching comparison, not an estimate of a real service level.
 
-<details><summary>Show a worked answer</summary>Whether coverage grows depends on how many validation totals have scores between the two thresholds. If the canonical policy was already refer-all because no threshold reached 95% with 25 receipts, a 90% target may make a policy feasible — at the cost of accepting more errors.</details>
+<details><summary>Show a worked answer</summary>The safest system at low coverage is the one whose *scores* put right answers first, which need not be the one with the best overall exact match. A transparent rule whose score is the lowest OCR confidence of its supporting words can rank its few confident totals well, while a model that always returns its best span can attach high scores to wrong spans; that shows as a low left end of its curve. Raising the coverage moves every system right along its curve toward its overall accuracy. Whatever the numbers, none of these operating points is validated for new receipts or for the held-out test set.</details>
 """)
     md("""## 14. Optional: bring your own receipts (BYOD)
 
 Off by default. **Privacy and authority:** process only receipts you are authorised to process in this hosted runtime, remove unnecessary personal or payment details first, and review every export before sharing. Nothing is sent to an OCR or LLM API; "local" here means this Colab runtime, not your own computer.
 
-Upload a ZIP in the Files panel, set `USE_BYOD`, `BYOD_MODE`, `BYOD_PATH` and `BYOD_AUTHORIZED` in §1, then run this section. The ZIP holds `manifest.json` (schema `org.dimer.receipt-byod.v1`, `authorized: true`, `number_format_policy` = `dot_decimal_comma_grouping` or `comma_decimal_dot_grouping`, a three-letter `currency` such as `PHP`, and one entry per image with a nonidentifying `receipt_id` and relative `image` path) and the JPEG/PNG images. Limits: 1,000 images, 2 GiB compressed, 5 GiB expanded, 20 MiB / 20 MP per image; traversal, links, duplicates and undeclared files are refused.
+Upload a ZIP in the Files panel, set `USE_BYOD`, `BYOD_MODE`, `BYOD_PATH` and `BYOD_AUTHORIZED` in §1, **run the §1 controls cell again** so the new values take effect, then run this section. The ZIP holds `manifest.json` (schema `org.dimer.receipt-byod.v1`, `authorized: true`, `number_format_policy` = `dot_decimal_comma_grouping` or `comma_decimal_dot_grouping`, a three-letter `currency` such as `PHP`, and one entry per image with a nonidentifying `receipt_id` and relative `image` path) and the JPEG/PNG images. Limits: 1,000 images, 2 GiB compressed, 5 GiB expanded, 20 MiB / 20 MP per image; traversal, links, duplicates and undeclared files are refused.
 
 * **`inference`**: the canonical bundle extracts four candidates; the CORD-selected threshold is **not validated for your receipts**, so every total defaults to `needs_review` and the transferred decision is only shown for comparison. No accuracy is reported without checked references.
 * **`adapt`**: adds `annotations.jsonl` (per receipt and field: `status` `present`/`not_annotated`, `raw_value`, `value_boxes` in original-image pixels, `provenance`) and explicit disjoint roles `train`, `validation_model`, `validation_policy`, `test` (optional `inference`) with a `group_id` per receipt; groups may not cross roles. The full workflow then runs in a separate directory from a fresh base: at least eight aligned training examples and nonempty validation and test roles are required, and missing prerequisites are refused. Small samples are small-sample evidence; a Philippine BYOD run is a new evaluation, not an extension of the CORD score.
 """)
     code(r"""# @title Optional BYOD run (off unless enabled in §1)
 if not USE_BYOD:
-    print('Optional BYOD is off. The canonical capstone is complete.')
+    print('Optional BYOD is off. To run it, set USE_BYOD and the other BYOD fields in §1, run the §1 controls cell again, then run this cell.')
 else:
     if not BYOD_AUTHORIZED:
         raise ValueError('Confirm in §1 that you are authorised to process these receipts (BYOD_AUTHORIZED).')
@@ -497,7 +516,7 @@ Complete this optional scaffold in your own words:
 > **Task and population:** On [n] held-out CORD v2 Indonesian receipts, extracting [fields] from photographs through Tesseract OCR…
 > **Principal result and baseline:** [system] reached total EM [value, interval] versus [rules] and [frozen model]; the adapted-minus-frozen difference was [value, interval].
 > **One failure mode:** [OCR loss / label words in spans / ambiguous separators / …], seen in [evidence].
-> **Review trade-off:** the validation-selected policy left [scored coverage] unflagged with selective error [value] (policy feasible: [yes/no]); lowering the target to [x] changed [coverage, errors] on validation.
+> **Review trade-off:** the validation-selected 95% policy left [scored coverage] unflagged with selective error [value] (policy feasible: [yes/no]); leaving [x] of validation totals unflagged, [system] left [k] wrong totals unflagged ([accuracy]).
 > **Uncertainty:** [small validation sets, template dependence, annotation bias, unknown pretraining overlap].
 > **Evidence needed for transfer:** [authorised local receipts with checked references and boxes, merchant-disjoint splits, a locally validated review policy, human audit of references…].
 
@@ -516,7 +535,7 @@ Limits that bound every conclusion: published CORD annotations are references, n
 | --- | --- |
 | No T4 or too little disk | Start a fresh T4 runtime; do not substitute a CPU or another accelerator silently. |
 | Hash, count or schema refusal | Stop and keep the log; never switch to `main`, a mirror, another dataset version or reference OCR. |
-| OCR install or language check fails | Keep the log; the pinned closure must install as declared (this is an open qualification item). |
+| OCR install or language check fails | Keep the log. The pinned closure installed on Colab and Kaggle T4 runtimes on 2026-09-29, so a failure is most often a transient download error: start a fresh runtime and Run all again. Never switch to an unpinned Tesseract. |
 | Training refuses (< 8 aligned examples) | The data contract failed; do not synthesise supervision. |
 | Policy is refer-all | A valid result: no threshold met the declared targets on validation. |
 | Replay parity fails | Keep outputs; resolve the mismatch before any release claim. |
