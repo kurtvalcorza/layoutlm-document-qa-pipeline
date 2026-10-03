@@ -1,26 +1,26 @@
 """Regression tests for the 2026-10-02 review of the document QA workshop notebook (DQA-M1..M4, DQA-m1..m5).
 
-The notebook's own cells (or the functions defined in them) run here against small stand-ins: no model
-weights, no GPU, no network. These tests check the review's acceptance criteria; they are not execution
-evidence for the notebook in a hosted runtime.
+Since 2026-10-03 the notebook carries its model and evaluation code as tools/document_qa_workshop.py and runs
+it in an isolated environment, so most checks call that stage file directly; the notebook cells that remain
+(controls, activity controls, displays) are executed here with stand-ins. No model weights, no GPU, no
+network. These tests check the review's acceptance criteria; they are not execution evidence for the
+notebook in a hosted runtime.
 """
 
-import ast
 import contextlib
 import csv
+import importlib
+import inspect
 import io
 import json
-import random
-import re
 import sys
 import types
 import zipfile
-from collections import defaultdict
 from pathlib import Path
 
-import numpy as np
+import document_qa_workshop
 import pytest
-from PIL import Image, ImageDraw
+from PIL import Image
 
 NOTEBOOK = (
     Path(__file__).resolve().parents[1]
@@ -50,20 +50,6 @@ def _order():
     return [i for i, _, _ in _cells()]
 
 
-def _defs(cid, *names):
-    """Source of the named top-level functions / assignments of one cell, in cell order."""
-    source = _src(cid)
-    out = []
-    for node in ast.parse(source).body:
-        if isinstance(node, ast.FunctionDef) and node.name in names:
-            out.append(ast.get_source_segment(source, node))
-        elif isinstance(node, (ast.Assign, ast.AugAssign)):
-            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-            if any(isinstance(t, ast.Name) and t.id in names for t in targets):
-                out.append(ast.get_source_segment(source, node))
-    return "\n".join(out)
-
-
 def _set_param(source, name, value):
     lines = source.split("\n")
     hits = [k for k, line in enumerate(lines) if line.startswith(f"{name} = ")]
@@ -79,38 +65,37 @@ def _run(source, ns):
     return out.getvalue()
 
 
+def _call(function, *args, **kwargs):
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        result = function(*args, **kwargs)
+    return result, out.getvalue()
+
+
+@pytest.fixture
+def dqa(tmp_path):
+    """A freshly loaded stage module with its output and state folders under tmp_path."""
+    module = importlib.reload(document_qa_workshop)
+    module.OUTPUT_DIR = str(tmp_path / "out" / "document_qa_comparison")
+    module.WORK_DIR = str(tmp_path / "work")
+    module.QUESTION_TEMPLATES = FIELDS
+    yield module
+    importlib.reload(document_qa_workshop)
+
+
 @pytest.fixture
 def shown(monkeypatch):
     """A stand-in IPython.display that records what the notebook displays."""
     calls = []
     disp = types.ModuleType("IPython.display")
     disp.display = lambda *objs, **_: calls.extend(objs)
+    disp.Image = lambda filename: ("image", filename)
+    disp.Markdown = lambda text: ("markdown", text)
     ipython = types.ModuleType("IPython")
     ipython.display = disp
     monkeypatch.setitem(sys.modules, "IPython", ipython)
     monkeypatch.setitem(sys.modules, "IPython.display", disp)
     return calls
-
-
-def _metrics_ns(**extra):
-    ns = {
-        "np": np,
-        "re": re,
-        "csv": csv,
-        "defaultdict": defaultdict,
-        "json": json,
-        "Path": Path,
-        "Image": Image,
-        "ImageDraw": ImageDraw,
-        "random": random,
-        "QUESTION_TEMPLATES": FIELDS,
-        "SAMPLE_SEED": 42,
-    }
-    _run(_src("ef5d4ed3"), ns)  # normalize_answer, anls, exact_match, answer_in_ocr, corpus_metrics
-    _run(_defs("b1722b90", "write_csv"), ns)
-    _run(_defs("aada1835", "subset_coverage", "print_field_deltas"), ns)
-    ns.update(extra)
-    return ns
 
 
 def _records(n=6):
@@ -149,13 +134,18 @@ def test_config_refuses_out_of_range_robustness_records(value):
         _run(_set_param(_src("5f810ac8"), "ROBUSTNESS_MAX_RECORDS", value), {})
 
 
+@pytest.mark.parametrize("value", [0, -3, 51, True])
+def test_stage_file_refuses_out_of_range_robustness_records(dqa, value):
+    dqa.ROBUSTNESS_MAX_RECORDS = value
+    with pytest.raises(ValueError, match="ROBUSTNESS_MAX_RECORDS"):
+        dqa.validate_controls()
+
+
 def test_config_default_is_accepted():
     _run(_src("5f810ac8"), {})
 
 
-def test_pix_answer_reads_the_generation_budget_at_call_time():
-    import inspect
-
+def test_pix_answer_reads_the_generation_budget_at_call_time(dqa):
     import torch
 
     seen = {}
@@ -173,77 +163,51 @@ def test_pix_answer_reads_the_generation_budget_at_call_time():
             seen["budget"] = kw["max_new_tokens"]
             return torch.zeros(1, 3, dtype=torch.long)
 
-    ns = {
-        "MAX_NEW_TOKENS": 32,
-        "torch": torch,
-        "DEVICE": "cpu",
-        "FONT_BYTES": b"",
-        "pix_processor": Proc(),
-        "pix_model": Model(),
-    }
-    _run(_defs("c598d7a7", "pix_answer"), ns)
-    assert inspect.signature(ns["pix_answer"]).parameters["max_new_tokens"].default is None
-    ns["MAX_NEW_TOKENS"] = 8
-    ns["pix_answer"](Image.new("RGB", (64, 64)), "What is the total?")
+    dqa.torch, dqa.FONT_BYTES, dqa.pix_processor, dqa.pix_model = torch, b"", Proc(), Model()
+    assert inspect.signature(dqa.pix_answer).parameters["max_new_tokens"].default is None
+    dqa.MAX_NEW_TOKENS = 8
+    dqa.pix_answer(Image.new("RGB", (64, 64)), "What is the total?")
     assert seen["budget"] == 8
 
 
 # --------------------------------------------------------------------------------------- DQA-m2
-def test_six_rejection_probes_run_and_are_exported():
-    ns = {
-        "Image": Image,
-        "MAX_NEW_TOKENS": 32,
-        "layout_model": object(),
-        "layout_tokenizer": object(),
-        "pix_model": object(),
-        "pix_processor": object(),
-    }
-    _run(_defs("9f0db1aa", "layout_answer", "rejection_probe", "REJECTION_PROBES"), ns)
-    _run(_defs("c598d7a7", "pix_answer", "_blank_page", "REJECTION_PROBES"), ns)
-    probes = ns["REJECTION_PROBES"]
+def test_six_rejection_probes_run_and_are_exported(dqa):
+    dqa.layout_model = dqa.layout_tokenizer = dqa.pix_model = dqa.pix_processor = object()
+    probes = dqa.layoutlm_rejection_probes() + dqa.pix2struct_rejection_probes()
     assert len(probes) == 6
     assert all(p["refused"] is True and p["message"] for p in probes)
     assert {p["check"].split(":")[0] for p in probes} == {"LayoutLM", "Pix2Struct"}
-    exports = _src("b1722b90")
-    assert '"rejection_probes":REJECTION_PROBES' in exports
+    exports = inspect.getsource(dqa.export_all)
+    assert '"rejection_probes":lc["rejection_probes"]+pc["rejection_probes"]' in exports
     assert "empty question is rejected" not in exports
 
 
-def test_rejection_probe_raises_when_an_invalid_input_is_accepted():
-    ns = {}
-    _run(_defs("9f0db1aa", "rejection_probe"), ns)
+def test_rejection_probe_raises_when_an_invalid_input_is_accepted(dqa):
     with pytest.raises(RuntimeError, match="not refused"):
-        ns["rejection_probe"]("accepting check", lambda: None)
+        dqa.rejection_probe("accepting check", lambda: None)
 
 
 # --------------------------------------------------------------------------------------- DQA-M4
-def test_layout_answer_after_release_says_how_to_reload():
-    ns = {}
-    _run(_defs("9f0db1aa", "layout_answer"), ns)
+def test_layout_answer_without_a_loaded_model_says_how_to_reload(dqa):
     with pytest.raises(RuntimeError, match="reloads it"):
-        ns["layout_answer"]("What is the total?", ["TOTAL"], [[0, 0, 10, 10]], (100, 100))
+        dqa.layout_answer("What is the total?", ["TOTAL"], [[0, 0, 10, 10]], (100, 100))
 
 
-def test_layout_experiment_rows_carry_the_field_and_print_coverage():
+def test_layout_experiment_rows_carry_the_field_and_print_coverage(dqa, monkeypatch):
     recs = _records(6)
     canonical = [
         {"record_id": r["id"], "answer": r["answers"][0], "anls": 1.0, "exact_match": True} for r in recs
     ]
-    ns = _metrics_ns(
-        test_records=recs,
-        layout_rows=canonical,
-        ROBUSTNESS_MAX_RECORDS=6,
-        RUN_MODALITY_ROBUSTNESS=True,
-        layout_answer=lambda q, w, b, s: {"answer": "3.00"},
-    )
-    out = _run(_src("aada1835"), ns)
-    assert all("field" in row for row in ns["layout_no_layout_rows"])
+    dqa.ROBUSTNESS_MAX_RECORDS = 6
+    monkeypatch.setattr(dqa, "layout_answer", lambda q, w, b, s: {"answer": "3.00"})
+    rows, out = _call(dqa.layout_no_layout, recs, canonical)
+    assert all("field" in row for row in rows)
     assert "'pages': 2" in out
     assert "menu.nm" in out and "total.total_price" in out
 
 
 @pytest.mark.parametrize("change", ["zero", "shuffle", "coarse"])
-def test_activity_runs_after_release_and_leaves_canonical_outputs(tmp_path, change):
+def test_activity_runs_and_leaves_canonical_outputs(dqa, monkeypatch, change):
     recs = _records(6)
     canonical = [{"record_id": r["id"], "answer": r["answers"][0], "anls": 1.0} for r in recs]
     life = []
@@ -254,35 +218,55 @@ def test_activity_runs_after_release_and_leaves_canonical_outputs(tmp_path, chan
             assert 0 <= x0 <= x1 <= image_size[0] and 0 <= y0 <= y1 <= image_size[1]
         return {"answer": "3.00"}
 
-    canonical_file = tmp_path / "predictions.csv"
-    canonical_file.write_text("canonical\n", encoding="utf-8")
-    ns = _metrics_ns(
-        test_records=recs,
-        layout_rows=canonical,
-        OUTPUT_DIR=str(tmp_path),
-        layout_answer=layout_answer,
-        load_layoutlm=lambda: life.append("load"),
-        release_layoutlm=lambda: life.append("release"),
-    )
-    source = _set_param(
-        _set_param(_src("dqa-activity"), "RUN_LAYOUT_ACTIVITY", True), "ACTIVITY_LAYOUT_CHANGE", change
-    )
-    out = _run(_set_param(source, "ACTIVITY_MAX_RECORDS", 6), ns)
+    out_dir = Path(dqa.OUTPUT_DIR)
+    out_dir.mkdir(parents=True)
+    (out_dir / "predictions.csv").write_text("canonical\n", encoding="utf-8")
+    monkeypatch.setattr(dqa, "layout_answer", layout_answer)
+    monkeypatch.setattr(dqa, "load_layoutlm", lambda: life.append("load"))
+    monkeypatch.setattr(dqa, "release_layoutlm", lambda: life.append("release"))
+    _, out = _call(dqa.run_activity, recs, canonical, change, 6)
     assert life == ["load", "release"]
     assert "total.total_price" in out and "'pages': 2" in out
-    rows = list(csv.DictReader((tmp_path / "activity" / f"layout_{change}.csv").open(encoding="utf-8")))
+    rows = list(csv.DictReader((out_dir / "activity" / f"layout_{change}.csv").open(encoding="utf-8")))
     assert len(rows) == 6 and {r["change"] for r in rows} == {change}
-    assert canonical_file.read_text(encoding="utf-8") == "canonical\n"
+    assert (out_dir / "predictions.csv").read_text(encoding="utf-8") == "canonical\n"
 
 
-def test_activity_is_off_by_default_and_refuses_unknown_change():
-    ns = _metrics_ns(test_records=_records(3), layout_rows=[], load_layoutlm=lambda: pytest.fail("loaded"))
-    assert "Activity not run" in _run(_src("dqa-activity"), ns)
+def test_activity_cell_is_off_by_default_and_refuses_unknown_change():
+    def run_stage(*_):
+        pytest.fail("the activity stage ran")
+
+    ns = {"run_stage": run_stage, "state": lambda name: {"test_records": _records(3)}, "show_source": print}
+    assert "Activity not run" in _run(_src("dqa-activity"), dict(ns))
     source = _set_param(
         _set_param(_src("dqa-activity"), "RUN_LAYOUT_ACTIVITY", True), "ACTIVITY_LAYOUT_CHANGE", "rotate"
     )
     with pytest.raises(ValueError, match="ACTIVITY_LAYOUT_CHANGE"):
-        _run(source, _metrics_ns(test_records=_records(3), layout_rows=[]))
+        _run(source, dict(ns))
+    on = _set_param(_src("dqa-activity"), "RUN_LAYOUT_ACTIVITY", True)
+    source = _set_param(on, "ACTIVITY_MAX_RECORDS", 4)
+    with pytest.raises(ValueError, match=r"1\.\.3"):
+        _run(source, dict(ns))
+
+
+def test_activity_cell_runs_the_activity_stage_with_its_controls():
+    calls = []
+    ns = {
+        "run_stage": lambda *a: calls.append(a),
+        "state": lambda name: {"test_records": _records(6)},
+        "show_source": lambda *names: None,
+    }
+    on = _set_param(_src("dqa-activity"), "RUN_LAYOUT_ACTIVITY", True)
+    source = _set_param(on, "ACTIVITY_MAX_RECORDS", 5)
+    _run(_set_param(source, "ACTIVITY_LAYOUT_CHANGE", "coarse"), ns)
+    assert calls == [("activity", "--change", "coarse", "--max-records", "5")]
+
+
+def test_activity_stage_refuses_out_of_range_controls(dqa):
+    with pytest.raises(ValueError, match="ACTIVITY_LAYOUT_CHANGE"):
+        dqa.run_activity(_records(3), [], "rotate", 2)
+    with pytest.raises(ValueError, match="ACTIVITY_MAX_RECORDS"):
+        dqa.run_activity(_records(3), [], "zero", 4)
 
 
 def test_try_it_markdown_is_followed_by_the_activity_cell():
@@ -294,7 +278,7 @@ def test_try_it_markdown_is_followed_by_the_activity_cell():
 
 
 # --------------------------------------------------------------------------------------- DQA-M3
-def test_a_receipt_is_shown_before_any_model_result(shown):
+def test_a_receipt_is_shown_before_any_model_result(dqa, tmp_path, shown):
     order = _order()
     assert order.index("dqa-preview") < order.index("de054504")
     rec = _records(1)[0]
@@ -304,15 +288,17 @@ def test_a_receipt_is_shown_before_any_model_result(shown):
         "words": rec["words"],
         "boxes": rec["boxes"],
     }
-    out = _run(
-        _src("dqa-preview"),
-        {"test_records": [rec], "test_pages": {rec["page_id"]: page}, "ImageDraw": ImageDraw},
-    )
-    assert len(shown) == 1 and isinstance(shown[0], Image.Image) and shown[0].width == 700
+    path = tmp_path / "preview.png"
+    preview, out = _call(dqa.draw_preview, [rec], {rec["page_id"]: page}, path)
+    assert preview.width == 700 and Image.open(path).width == 700
     assert rec["question"] in out
+    calls = []
+    ns = {"run_stage": lambda *a: calls.append(a), "state": lambda name: {"path": str(path)}}
+    _run("from IPython.display import Image as ShowImage, display\n" + _src("dqa-preview"), ns)
+    assert calls == [("preview",)] and shown == [("image", str(path))]
 
 
-def _comparison(tmp_path):
+def _comparison():
     recs = _records(6)
     pages = {
         r["page_id"]: {
@@ -323,7 +309,7 @@ def _comparison(tmp_path):
         }
         for r in recs
     }
-    layout_rows, pix_rows, agreement = [], [], []
+    layout_rows, pix_rows = [], []
     for k, r in enumerate(recs):
         l_ok, p_ok = k % 2 == 0, k % 3 == 0
         layout_rows.append(
@@ -336,77 +322,53 @@ def _comparison(tmp_path):
                 "answer_union_box": r["boxes"][-1],
             }
         )
-        pix_answer = r["answers"][0] if p_ok else "3,30 total"
         pix_rows.append(
             {
                 "record_id": r["id"],
                 "field": r["field"],
                 "gold_answer": r["answers"][0],
-                "answer": pix_answer,
+                "answer": r["answers"][0] if p_ok else "3,30 total",
                 "exact_match": p_ok,
                 "anls": 1.0 if p_ok else 0.4,
                 "answer_in_ocr": p_ok,
                 "truncated": False,
             }
         )
-        cat = (
-            "both_exact"
-            if l_ok and p_ok
-            else "layoutlm_only"
-            if l_ok
-            else "pix2struct_only"
-            if p_ok
-            else "neither_exact"
-        )
-        agreement.append(
-            {
-                "record_id": r["id"],
-                "page_id": r["page_id"],
-                "question": r["question"],
-                "gold_answer": r["answers"][0],
-                "layoutlm_answer": layout_rows[-1]["answer"],
-                "layoutlm_anls": layout_rows[-1]["anls"],
-                "pix2struct_answer": pix_answer,
-                "pix2struct_anls": pix_rows[-1]["anls"],
-                "agreement_category": cat,
-            }
-        )
-    return {
-        "test_pages": pages,
-        "layout_rows": layout_rows,
-        "pix_rows": pix_rows,
-        "agreement_rows": agreement,
-        "layout_by_id": {r["record_id"]: r for r in layout_rows},
-        "pix_by_id": {r["record_id"]: r for r in pix_rows},
-        "OUTPUT_DIR": str(tmp_path),
-        "Image": Image,
-        "ImageDraw": ImageDraw,
-        "Path": Path,
-    }
+    return recs, pages, layout_rows, pix_rows
 
 
-def test_panels_are_displayed_and_include_the_diagnostic_cases(tmp_path, shown):
-    ns = _comparison(tmp_path)
-    out = _run(_src("52ae9160"), ns)
-    cats = [e["agreement_category"] for e in ns["selected_examples"]]
-    assert {"pix2struct_not_in_ocr", "layoutlm_confident_wrong"} <= set(cats)
-    assert len(shown) == len(cats) >= 4
-    assert len(list((tmp_path / "examples").glob("*.png"))) == len(cats)
-    confident = next(
-        e for e in ns["selected_examples"] if e["agreement_category"] == "layoutlm_confident_wrong"
-    )
+def test_panels_include_the_diagnostic_cases_and_are_displayed(dqa, tmp_path, shown):
+    recs, pages, layout_rows, pix_rows = _comparison()
+    agreement_rows, _ = dqa.agreement(recs, layout_rows, pix_rows)
+    examples = dqa.select_examples(agreement_rows, layout_rows, pix_rows)
+    cats = [e["agreement_category"] for e in examples]
+    assert {"pix2struct_not_in_ocr", "layoutlm_confident_wrong"} <= set(cats) and len(cats) >= 4
+    confident = next(e for e in examples if e["agreement_category"] == "layoutlm_confident_wrong")
     assert confident["record_id"] == "test-0005"  # the highest span score among LayoutLM's wrong answers
-    assert "pix2struct_not_in_ocr: test-0001" in out
+    off_page = next(e for e in examples if e["agreement_category"] == "pix2struct_not_in_ocr")
+    assert off_page["record_id"] == "test-0001"
+    by_l = {r["record_id"]: r for r in layout_rows}
+    by_p = {r["record_id"]: r for r in pix_rows}
+    panel = dqa.draw_qa_panel(examples[0], pages, by_l, by_p)
+    assert panel.height == 100 + 218
+    listed = [{"category": c, "record_id": f"test-{k:04d}", "path": f"p{k}.png"} for k, c in enumerate(cats)]
+    out = _run(
+        "from IPython.display import Image as ShowImage, display\n" + _src("52ae9160"),
+        {"run_stage": lambda *a: None, "state": lambda name: listed},
+    )
+    assert len(shown) == len(cats)
+    assert f"{cats[0]}: test-0000 (p0.png)" in out
 
 
-def test_answers_not_in_ocr_are_listed(tmp_path):
-    out = _run(_src("dqa-offpage"), _comparison(tmp_path))
+def test_answers_not_in_ocr_are_listed(dqa):
+    _, _, _, pix_rows = _comparison()
+    _, out = _call(dqa.print_off_page, pix_rows)
     assert "not found as a contiguous OCR span: 4 of 6" in out
     assert "test-0001" in out and "3,30 total" in out
 
 
 # --------------------------------------------------------------------------------------- DQA-M1 / M2
-def _byod_ns(tmp_path, life=None):
+def _byod_module(dqa, monkeypatch, life=None):
     life = [] if life is None else life
 
     def layout_answer(q, words, boxes, size):
@@ -422,17 +384,13 @@ def _byod_ns(tmp_path, life=None):
     def pix_answer(image, q):
         return {"answer": "standin answer", "new_tokens": 3, "truncated": False}
 
-    return _metrics_ns(
-        OUTPUT_DIR=str(tmp_path / "out" / "document_qa_comparison"),
-        USE_BYOD=False,
-        BYOD_PATH="",
-        layout_answer=layout_answer,
-        pix_answer=pix_answer,
-        load_layoutlm=lambda: life.append("load_layoutlm"),
-        release_layoutlm=lambda: life.append("release_layoutlm"),
-        load_pix2struct=lambda: life.append("load_pix2struct"),
-        release_pix2struct=lambda: life.append("release_pix2struct"),
-    )
+    monkeypatch.setattr(dqa, "layout_answer", layout_answer)
+    monkeypatch.setattr(dqa, "pix_answer", pix_answer)
+    monkeypatch.setattr(dqa, "load_layoutlm", lambda: life.append("load_layoutlm"))
+    monkeypatch.setattr(dqa, "release_layoutlm", lambda: life.append("release_layoutlm"))
+    monkeypatch.setattr(dqa, "load_pix2struct", lambda: life.append("load_pix2struct"))
+    monkeypatch.setattr(dqa, "release_pix2struct", lambda: life.append("release_pix2struct"))
+    return dqa
 
 
 def _byod_record(rid, file="p1.png", answers=("3.30",)):
@@ -512,39 +470,38 @@ BAD_BYOD = {
 
 
 @pytest.mark.parametrize("case", list(BAD_BYOD))
-def test_byod_refusals_name_the_record_before_any_model_loads(tmp_path, case):
+def test_byod_refusals_name_the_record_before_any_model_loads(dqa, monkeypatch, tmp_path, case):
     records, pages, rid, rule = BAD_BYOD[case]
     life = []
-    ns = _byod_ns(tmp_path, life)
-    ns.update(USE_BYOD=True, BYOD_PATH=str(_write_byod(tmp_path / "ds", records, pages)))
+    _byod_module(dqa, monkeypatch, life)
+    dqa.BYOD_PATH = str(_write_byod(tmp_path / "ds", records, pages))
     with pytest.raises(ValueError) as err:
-        _run(_src("77f434e8"), ns)
+        _call(dqa.run_byod)
     assert rid in str(err.value) and rule in str(err.value)
     assert life == []
 
 
-def test_byod_refuses_more_than_100_pages(tmp_path):
+def test_byod_refuses_more_than_100_pages(dqa, monkeypatch, tmp_path):
     records = [_byod_record(f"q{k}", file=f"p{k}.png") for k in range(101)]
     pages = {f"p{k}.png": (200, 100) for k in range(101)}
-    ns = _byod_ns(tmp_path)
-    ns.update(USE_BYOD=True, BYOD_PATH=str(_write_byod(tmp_path / "ds", records, pages)))
+    _byod_module(dqa, monkeypatch)
+    dqa.BYOD_PATH = str(_write_byod(tmp_path / "ds", records, pages))
     with pytest.raises(ValueError, match="101 page images"):
-        _run(_src("77f434e8"), ns)
+        _call(dqa.run_byod)
 
 
 def _csv_rows(path):
     return list(csv.DictReader(path.open(encoding="utf-8")))
 
 
-def test_byod_labelled_run_shows_and_exports_answers(tmp_path):
+def test_byod_labelled_run_shows_and_exports_answers(dqa, monkeypatch, tmp_path):
     life = []
-    ns = _byod_ns(tmp_path, life)
-    out_dir = Path(ns["OUTPUT_DIR"])
+    _byod_module(dqa, monkeypatch, life)
+    out_dir = Path(dqa.OUTPUT_DIR)
     out_dir.mkdir(parents=True)
     (out_dir / "predictions.csv").write_text("canonical\n", encoding="utf-8")
-    root = _write_byod(tmp_path / "ds", [_byod_record("q1"), _byod_record("q2", file="p2.png")])
-    ns.update(USE_BYOD=True, BYOD_PATH=str(root))
-    out = _run(_src("77f434e8"), ns)
+    dqa.BYOD_PATH = str(_write_byod(tmp_path / "ds", [_byod_record("q1"), _byod_record("q2", file="p2.png")]))
+    _, out = _call(dqa.run_byod)
     assert life == ["load_layoutlm", "release_layoutlm", "load_pix2struct", "release_pix2struct"]
     assert "q1" in out and "q2" in out and "standin answer" in out and '"measured"' in out
     rows = _csv_rows(out_dir / "byod" / "predictions.csv")
@@ -556,36 +513,53 @@ def test_byod_labelled_run_shows_and_exports_answers(tmp_path):
     assert (out_dir / "predictions.csv").read_text(encoding="utf-8") == "canonical\n"
 
 
-def test_byod_unlabelled_run_is_not_measurable_but_keeps_answers(tmp_path):
-    ns = _byod_ns(tmp_path)
-    root = _write_byod(tmp_path / "ds", [_byod_record("u1", answers=None)])
-    ns.update(USE_BYOD=True, BYOD_PATH=str(root))
-    out = _run(_src("77f434e8"), ns)
+def test_byod_unlabelled_run_is_not_measurable_but_keeps_answers(dqa, monkeypatch, tmp_path):
+    _byod_module(dqa, monkeypatch)
+    dqa.BYOD_PATH = str(_write_byod(tmp_path / "ds", [_byod_record("u1", answers=None)]))
+    _, out = _call(dqa.run_byod)
     assert "not-measurable" in out and "u1" in out and "standin answer" in out
-    rows = _csv_rows(Path(ns["OUTPUT_DIR"]) / "byod" / "predictions.csv")
+    rows = _csv_rows(Path(dqa.OUTPUT_DIR) / "byod" / "predictions.csv")
     assert [r["answer"] for r in rows] == ["3.30", "standin answer"]
     assert {r["anls"] for r in rows} == {""}
 
 
-def test_byod_accepts_the_documented_zip_and_refuses_escaping_members(tmp_path):
+def test_byod_accepts_the_documented_zip_and_refuses_escaping_members(dqa, monkeypatch, tmp_path):
     root = _write_byod(tmp_path / "ds", [_byod_record("z1")])
     archive = tmp_path / "dataset.zip"
     with zipfile.ZipFile(archive, "w") as z:
         for p in root.rglob("*"):
             if p.is_file():
                 z.write(p, "dataset/" + p.relative_to(root).as_posix())
-    ns = _byod_ns(tmp_path)
-    ns.update(USE_BYOD=True, BYOD_PATH=str(archive))
-    assert "z1" in _run(_src("77f434e8"), ns)
+    _byod_module(dqa, monkeypatch)
+    dqa.BYOD_PATH = str(archive)
+    assert "z1" in _call(dqa.run_byod)[1]
     slip = tmp_path / "slip.zip"
     with zipfile.ZipFile(slip, "w") as z:
         z.writestr("../escape.txt", "x")
         z.writestr("records.jsonl", json.dumps(_byod_record("z1")) + "\n")
-    ns = _byod_ns(tmp_path)
-    ns.update(USE_BYOD=True, BYOD_PATH=str(slip))
+    dqa.BYOD_PATH = str(slip)
     with pytest.raises(ValueError, match="outside the dataset folder"):
-        _run(_src("77f434e8"), ns)
+        _call(dqa.run_byod)
     assert not (tmp_path / "out" / "escape.txt").exists()
+
+
+def test_byod_cell_runs_the_stage_only_when_enabled(tmp_path):
+    calls = []
+    metrics = tmp_path / "out" / "byod" / "metrics.json"
+    metrics.parent.mkdir(parents=True)
+    metrics.write_text('{"evaluation_verdict": "measured"}', encoding="utf-8")
+    ns = {
+        "run_stage": lambda *a: calls.append(a),
+        "read_json": lambda p: json.loads(Path(p).read_text(encoding="utf-8")),
+        "Path": Path,
+        "OUTPUT_DIR": str(tmp_path / "out"),
+        "USE_BYOD": False,
+    }
+    assert "BYOD disabled" in _run(_src("77f434e8"), ns)
+    assert calls == []
+    ns["USE_BYOD"] = True
+    _run(_src("77f434e8"), ns)
+    assert calls == [("byod",)] and ns["byod_result"]["metrics"]["evaluation_verdict"] == "measured"
 
 
 def test_byod_section_states_limits_layouts_and_data_locality():
@@ -597,31 +571,34 @@ def test_byod_section_states_limits_layouts_and_data_locality():
 
 
 # --------------------------------------------------------------------------------------- DQA-m3 / m4 / m5
-def test_runtime_orientation_and_cpu_warning():
+def test_runtime_orientation_and_cpu_warning(dqa):
     opening = _src("guided-00")
     assert "2.1 GB" in opening and "152 seconds" in opening and "T4" in opening
     assert "No GPU detected" in _src("7984f79d")
+    assert "No GPU detected" in inspect.getsource(dqa.stage_environment)
 
 
-def test_each_experiment_output_is_followed_by_what_to_notice():
+def test_each_experiment_output_is_followed_by_what_to_notice(dqa):
     order = _order()
-    for cid, note in (
-        ("aada1835", "dqa-notice-13"),
-        ("b1a10dd3", "dqa-notice-18"),
-        ("6206457c", "dqa-notice-23"),
+    for cid, note, stage, function in (
+        ("aada1835", "dqa-notice-13", "layoutlm-no-layout", dqa.layout_no_layout),
+        ("b1a10dd3", "dqa-notice-18", "pix2struct-degraded", dqa.pix_degraded),
+        ("6206457c", "dqa-notice-23", "paraphrase", dqa.stage_paraphrase),
     ):
         assert order[order.index(cid) + 1] == note
         assert _src(note).startswith("> **What to notice.**")
-        assert "subset_coverage(" in _src(cid)
+        assert f'run_stage("{stage}")' in _src(cid)
+        assert "subset_coverage(" in inspect.getsource(function)
 
 
-def test_metric_explanation_glossary_and_terminology():
+def test_metric_explanation_glossary_and_terminology(dqa):
     metrics = _src("f3f4db23")
     assert "edit distance" in metrics and "0.875" in metrics and "Exact Match = 0" in metrics
     glossary = _src("guided-05")
     for term in ("OCR", "Word box", "Span", "Exact Match", "Token window", "Patch", "Uncalibrated score"):
         assert f"**{term}**" in glossary, term
-    assert "Workshop" not in _src("8ad583a7")
+    assert _src("8ad583a7").strip().endswith('run_stage("summary")')
+    assert "Workshop" not in inspect.getsource(dqa.stage_summary)
 
 
 def test_the_review_edit_is_recorded_in_the_notebook_metadata():
