@@ -1,0 +1,12 @@
+# Isolated environment of DIMER_Document_QA_LayoutLM_vs_Pix2Struct_Workshop.ipynb (2026-10-03).
+# Exact pins carried over from the notebook's former in-kernel install (cell 7984f79d, PINS):
+torch==2.14.0
+torchvision==0.29.0
+torchaudio==2.11.0
+transformers==4.57.6
+safetensors==0.8.0
+# numpy: the former cell kept a NumPy 2.x the hosted kernel had already loaded and otherwise installed this pin.
+numpy==2.5.3
+pillow==11.3.0
+huggingface-hub==0.36.2
+pyarrow==25.0.1
