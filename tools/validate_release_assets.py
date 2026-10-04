@@ -1,6 +1,6 @@
 """Static release-asset validation for the LayoutLM Document QA (impira) DIMER pipeline.
 
-Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.0 §4), the tutorial
+Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.2 §4), the tutorial
 registry, model card, README, STATUS.md and weight documentation for source conformance and
 cross-document identity consistency, and runs the generator parity checks (PAR1–PAR3).
 
@@ -51,7 +51,13 @@ CODE_MARKERS = (
     "corpus_rows = fetch_corpus(cache_dir='weights/cord-v2')",
     "splits = build_sample_dataset(read_corpus(corpus_rows), seed=SPLIT_SEED)",
     "records = load_byod_dataset(byod_path)",
-    "dataset_manifests = {name: validate_dataset(part) for name, part in splits.items()}",
+    "splits = split_dataset(records, seed=SPLIT_SEED)",
+    "dataset_manifests = {name: validate_dataset(part, min_records=minimums[name]) for name, part in splits.items()}",
+    # LDQ-m1: BYOD path field, upload guard, the real minimum computed and printed
+    "BYOD_PATH = ''",
+    "if len(uploaded) != 1:",
+    "minimums = split_minimums()",
+    "print({'byod_minimum_records': byod_record_limits()[0], 'split_minimums': minimums})",
     "disjoint = check_split_disjoint(splits)",
     "write_dataset_jsonl(splits['train'], 'outputs/layoutlm_document_qa_train.jsonl')",
     # Stage 5: fit check, ceilings, the inference contract with its manifest, probe and sanity checks
@@ -67,7 +73,12 @@ CODE_MARKERS = (
     "baseline_last = last_number_baseline(test_records)",
     "baseline_lookup = keyword_lookup_baseline(test_records)",
     "frozen_test = pipe.evaluate(test_records)",
-    "assert frozen_test['anls'] > baseline_last['anls']",
+    # LDQ-M2/M3: Sections 5-7 start from the pretrained model; Section 6 refuses an adapted one
+    "def reset_to_pretrained():",
+    "    pipe = LayoutLMDocumentQAPipeline.from_pretrained(weights_dir=WEIGHTS_DIR)",
+    "if frozen_test['adapted']:",
+    # the comparisons are recorded, not asserted
+    "frozen_beats_last_number = frozen_test['anls'] > baseline_last['anls']",
     # Stage 7: bounded fine-tuning with explicit hyperparameters
     "adapt_result = pipe.adapt(",
     "trainable_encoder_layers=TRAINABLE_ENCODER_LAYERS",
@@ -76,15 +87,23 @@ CODE_MARKERS = (
     "adapted_test = pipe.evaluate(test_records)",
     "adapted_val = pipe.evaluate(val_records)",
     "'delta_vs_frozen'",
-    "assert adapted_test['anls'] > frozen_test['anls']",
+    "adapted_beats_frozen = comparison['delta_vs_frozen']['anls'] > 0",
+    # LDQ-m4: fields that lose score and the questions where the models disagree are shown
+    "worse_fields = sorted(field for field, row in comparison['by_field'].items() if row['adapted'] < row['frozen'])",
+    "disagreements = [r for r in test_records if frozen_answers[r['id']] != adapted_answers[r['id']]]",
+    "'outcomes': outcomes,",
+    "print('Reading: ' + reading)",
+    "run_history = globals().get('run_history', [])",
     # Stage 9: the invoice re-read, the per-page report, artifact, reload parity, provenance
     "adapted_form = evaluation_report(adapted_results, golds, sample_kind='synthetic')",
     "pipe.save_artifact(artifact_dir, metadata=",
     "reloaded = LayoutLMDocumentQAPipeline.from_artifact(artifact_dir, weights_dir=WEIGHTS_DIR, device=pipe.device)",
-    "assert parity['identical_answers'] == parity['of']",
+    "raise RuntimeError(f'Reload parity failed: {parity}.",
+    # LDQ-m5: the runnable unsupported-question probe
+    "UNSUPPORTED_QUESTIONS = [",
     "weight_entry = next(entry for entry in MANIFEST['files'] if entry['path'] == WEIGHT_FILE)",
     "'weight_format': 'safetensors, digest-verified'",
-    "'corpus': {'name': CORPUS_NAME, 'repo': CORPUS_REPO, 'revision': CORPUS_REVISION, 'release': CORPUS_RELEASE, 'license': CORPUS_LICENSE, 'column': CORPUS_COLUMN, 'files': CORPUS_FILES}",
+    "'corpus': None if USE_BYOD else {'name': CORPUS_NAME, 'repo': CORPUS_REPO, 'revision': CORPUS_REVISION, 'release': CORPUS_RELEASE, 'license': CORPUS_LICENSE, 'column': CORPUS_COLUMN, 'files': CORPUS_FILES}",
     "'model_revision': MODEL_REVISION",
     "'model_license': MODEL_LICENSE",
     "transformers.__version__",
@@ -106,7 +125,47 @@ MARKDOWN_MARKERS = (
     "OCR itself (the notebook installs no Tesseract and ships no OCR model",
     "**Snapshot note:** the pinned revision ships a fast `tokenizer.json`",
     "**windowed at inference and are therefore not trained on**",
+    "**What the split does and does not protect against.**",
+    # LDQ-m4: one expected validation ANLS quoting the recorded run with its environment; the per-field regression
+    "**0.819 → 0.952**",
+    "**Run-to-run spread.**",
+    "**the discount field went down, 1.00 → 0.75**",
+    # LDQ-M1: the notebook builds its own Python 3.12.12 environment whatever the kernel runs
+    "Section 1 builds its own **Python 3.12.12** environment",
+    # LDQ-m1: the stated BYOD minimum (computed by byod_record_limits; a test ties the two together)
+    "**at least 12 records with one question per page**",
 )
+# Learner-facing text the review fixes removed; it must not come back (LDQ-M1 restart/install text, LDQ-M3 the
+# re-run-from-that-cell BYOD instruction, LDQ-m1 the wrong minimum, LDQ-m4 the drifting expected values, the asserts).
+STALE_MARKDOWN = (
+    "its restart",
+    "Restart the runtime, then rerun",
+    "installs the pinned dependencies",
+    "re-run from that cell",
+    "a dataset needs 8..20,000 records",
+    "to about 0.96",
+    "The cell asserts",
+    "the cell asserts",
+)
+# The guided layer (NOTEBOOK_SPEC 2.2 §3.5, GDL1-GDL15; review LDQ-m5): each marker with its minimum count.
+GUIDED_MARKERS = (
+    ("**Who this is for.**", 1),
+    ("**Input → Model → Output.**", 1),
+    ("**How to use this notebook.**", 1),
+    ("**Roadmap:**", 1),
+    ("**Predict before running:**", 7),
+    ("**What to notice:**", 7),
+    ("<summary>Check your reasoning</summary>", 8),
+    ("## 10. Try it — questions the page cannot answer", 1),
+    ("## 11. Your turn — change one thing", 1),
+    ("**Predict → Change one thing → Run → Observe → Explain**", 1),
+    ("## Troubleshooting", 1),
+    ("## Glossary", 1),
+    ("## Conclusion (your notes)", 1),
+    ("> **Infrastructure.**", 3),
+    ("**Optional experiments", 1),
+)
+INSTALL_CELL_MARKER = "subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', *PINS], check=True)"
 # Direct-library use that must stay inside the carried module cells (G2: the notebook calls the
 # pipeline API, it does not reimplement it). Checked on every code cell except the embedded ones.
 FORBIDDEN_OUTSIDE_MODULE = (
@@ -134,10 +193,10 @@ FORBIDDEN_OUTSIDE_MODULE = (
 # ---------------------------------------------------------------------------
 # Shared checks. Everything below is source/structure validation only. Passing
 # these checks is NOT clean-runtime execution evidence under DIMER Notebook
-# Specification 2.0; see docs/release-verification.md for the release gate.
+# Specification 2.2; see docs/release-verification.md for the release gate.
 # ---------------------------------------------------------------------------
 
-NOTEBOOK_SPEC = "2.0"
+NOTEBOOK_SPEC = "2.2"
 ALLOWED_PROFILES = {"E2E", "ARTIFACT-INFERENCE", "TASK-INFERENCE", "MULTI-CAPABILITY", "SMOKE"}
 STATUS_TOKENS = ("Candidate", "Release-grade")
 PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME)\b|Insert text here|Tooltip:", re.I)
@@ -610,8 +669,13 @@ def _validate_embedded_modules(path: Path, notebook: dict, build) -> list[int]:
             cell["metadata"]["dimer"].get("module_sha256") == context["per_module_sha256"][rel],
             f"{path.name}: cell {index} module_sha256 tag does not match {rel}",
         )
+        # LDQ-m5: the carried cell is the module plus the generator's one Infrastructure title line, collapsed.
         _check(
-            _cell_source(cell).rstrip("\n") + "\n" == context["embedded"][module],
+            _cell_source(cell).startswith(build.CARRIED_TITLE_PREFIX) and cell.get("metadata", {}).get("cellView") == "form",
+            f"{path.name}: carried module cell {index} must start with the generator's Infrastructure title and be collapsed (cellView: form)",
+        )
+        _check(
+            build.strip_carried_title(_cell_source(cell)).rstrip("\n") + "\n" == context["embedded"][module],
             f"{path.name}: embedded module cell {index} differs from {rel} (PAR1); regenerate the notebook",
         )
     return [index for index, _ in tagged]
@@ -681,7 +745,7 @@ def _validate_bootstrap_guard(path: Path, code_cells: list[tuple[int, str, ast.M
 
 
 def _validate_notebook_content(
-    path: Path, code_cells: list[tuple[int, str, ast.Module]], markdown: str, embedded: list[int]
+    path: Path, code_cells: list[tuple[int, str, ast.Module]], markdown: str, embedded: list[int], notebook: dict
 ) -> None:
     model_id, _revision = _package_identity()
     stripped = {index: _strip_comments(source) for index, source, _ in code_cells}
@@ -691,8 +755,33 @@ def _validate_notebook_content(
     _check(not missing, f"{path.name}: missing required source markers: {missing}")
     present = [label for label, pattern in FORBIDDEN_PATTERNS if pattern.search(code)]
     _check(not present, f"{path.name}: forbidden/insecure source: {present}")
-    leaked = [marker for marker in FORBIDDEN_OUTSIDE_MODULE if marker in outside]
+    # LDQ-M1: the kernel install cell downloads the pinned uv wheel and verifies its size and SHA-256; with the
+    # generator's runtime-record cell (pip install guard, skipped in the isolated worker) it is the only cell outside
+    # the carried modules allowed to use urllib.request / the pinned-install markers.
+    kernel = {index for index, source, _tree in code_cells if "# dimer: kernel cell" in source}
+    learner = "\n".join(
+        text for index, text in stripped.items() if index not in embedded and index not in kernel and INSTALL_CELL_MARKER not in text
+    )
+    kernel_raw = [source for index, source, _tree in code_cells if index in kernel]
+    leaked = [marker for marker in FORBIDDEN_OUTSIDE_MODULE if marker in learner]
+    leaked += [m for m in FORBIDDEN_OUTSIDE_MODULE if m != "urllib.request" and any(m in _strip_comments(k) for k in kernel_raw)]
     _check(not leaked, f"{path.name}: direct library use outside the carried module cell (G2): {leaked}")
+    _check(len(kernel) == 2, f"{path.name}: exactly two kernel cells (isolated install and router) are expected (LDQ-M1)")
+    install = next((k for k in kernel_raw if "LOCK_TEXT = r" in k), "")
+    for needed in ('"--managed-python"', '"--require-hashes"', '"--only-binary"', '":all:"', "UV_SHA256", "LOCK_SHA256", 'platform.machine() != "x86_64"'):
+        _check(needed in install, f"{path.name}: the isolated install cell must use {needed} (LDQ-M1)")
+    _check("_ip.input_transformers_cleanup.append(_route_to_isolated_runtime)" in "\n".join(kernel_raw), f"{path.name}: later cells must be routed to the isolated environment (LDQ-M1)")
+    _check("module.__spec__ = importlib.machinery.ModuleSpec(name, None, is_package=package)" in "\n".join(kernel_raw), f"{path.name}: the worker's google.colab stubs must carry a module spec")
+    stale = [marker for marker in STALE_MARKDOWN if marker in markdown]
+    _check(not stale, f"{path.name}: stale learner-facing text: {stale}")
+    _check("{{" not in markdown and "}}" not in markdown, f"{path.name}: markdown must not show doubled braces (LDQ-m2)")
+    _check("\nassert " not in "\n" + learner, f"{path.name}: learner cells must not use a bare assert")
+    short = [(marker, markdown.count(marker), least) for marker, least in GUIDED_MARKERS if markdown.count(marker) < max(least, 1)]
+    _check(not short, f"{path.name}: guided layer incomplete (marker, found, needed): {short}")
+    # GDL11 (LDQ-m5): every setup cell (install, router, runtime record, carried modules, model) is collapsed and titled.
+    setup = [cell for cell in notebook["cells"] if cell["cell_type"] == "code"][: 3 + len(embedded) + 1]
+    _check(all(cell.get("metadata", {}).get("cellView") == "form" for cell in setup), f"{path.name}: Sections 1-3 code cells must be collapsed (cellView: form)")
+    _check(all("".join(cell["source"]).startswith("# @title Infrastructure: ") for cell in setup), f"{path.name}: Sections 1-3 code cells must be titled '# @title Infrastructure: ...'")
     _check(
         f"pipe = {MODEL_LOAD_EXPR}" in outside,
         f"{path.name}: must load through {MODEL_LOAD_EXPR} (INF1)",
@@ -726,7 +815,7 @@ def validate_notebooks() -> None:
     _model_id, revision = _package_identity()
     _validate_identity(path, code_cells, embedded, revision)
     _validate_parity(path, notebook, code_cells, build)
-    _validate_notebook_content(path, code_cells, markdown, embedded)
+    _validate_notebook_content(path, code_cells, markdown, embedded, notebook)
     registry = _read(tutorials / "README.md")
     tick = chr(96)
     _check(f"{tick}{path.name}{tick}" in registry, f"{path.name} missing from tutorials/README.md")

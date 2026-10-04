@@ -3,7 +3,7 @@
 `tutorials/layoutlm_document_qa_colab.ipynb` (`E2E`, **standalone** carrier) is a **release candidate** until the
 exact notebook revision has executed top-to-bottom in a clean supported runtime. Unit tests, JSON validation,
 code-cell compilation, the generator parity checks and `tools/validate_release_assets.py` are necessary checks but
-are **not** runtime evidence under DIMER Notebook Specification 2.0 (REL8). This file is the durable release-gate
+are **not** runtime evidence under DIMER Notebook Specification 2.2 (REL8). This file is the durable release-gate
 record for the notebook.
 
 ## Automatic coverage (static, every pull request)
@@ -13,14 +13,17 @@ CI runs `tools/validate_release_assets.py`, which checks:
 - notebook JSON parses; every code cell compiles as plain Python (no `%`/`!` magics); no persisted outputs or
   execution counts; no unresolved placeholder markers; every code cell is preceded by an explanatory markdown cell;
 - exactly one tutorial notebook, named in `tutorials/README.md` with its `E2E` profile, the notebook-spec version
-  and the standalone carrier; `metadata.dimer` declares that profile, spec `2.0`, a §3.3 pedagogical mode,
+  and the standalone carrier; `metadata.dimer` declares that profile, spec `2.2`, a §3.3 pedagogical mode,
   `standalone: true` and `generated_from` (repository, revision, module SHA-256, generator);
 - the standalone carrier (ST1–ST8, PAR1–PAR4): no clone, repository install or repository import on the primary
   path; one cell per carried module (`pipeline.py`, `metrics.py`, `samples.py`), each equal to its source after the
   generator's documented rewrites; the inline `MANIFEST` equal to the committed 8-entry snapshot manifest and the
   inline `PINS` equal to the `pyproject.toml` runtime pins; the notebook byte-identical (on LF) to
-  `tools/build_notebook.py` output for its recorded revision; the pinned-install cell with its
-  restart-on-stale-import guard; `NOTEBOOK_SOURCE` recorded in exports;
+  `tools/build_notebook.py` (/2.1) output for its recorded revision; exactly two kernel cells — the isolated install
+  (uv wheel size/SHA-256, managed CPython 3.12.12, `--require-hashes --only-binary :all:` from the carried lock) and
+  the router to the isolated worker (whose `google.colab` stubs carry a module spec); Sections 1–3 labelled
+  Infrastructure and collapsed; the guided-layer markers; no bare `assert` in learner cells; no doubled braces in
+  markdown; `NOTEBOOK_SOURCE` recorded in exports;
 - `MODEL_ID`/`MODEL_REVISION` bound only in the carried module cell (and repeated in the inline manifest, which the
   notebook asserts against the module before fetching), the revision a 40-hex immutable commit, and the same
   identity string in `README.md`, `MODEL_CARD.md` and `docs/WEIGHTS.md` with no stray revisions (the pinned
@@ -31,9 +34,9 @@ CI runs `tools/validate_release_assets.py`, which checks:
   `check_split_disjoint`, `write_dataset_jsonl`, `pipe.check_fit` per split, the ceiling print, `validate_inputs`
   with the box-outside-page refusal probe, `pipe.answer` with the sanity checks and the per-page
   `evaluation_report` on the rendered invoice, `last_number_baseline`, `keyword_lookup_baseline`, `pipe.evaluate`
-  on the frozen model and on the validation and test splits after adaptation with the ANLS assertions, `pipe.adapt`
+  on the frozen model (after `reset_to_pretrained()`, refusing an adapted model) and on the validation and test splits after adaptation with the recorded outcomes, `pipe.adapt`
   with its explicit hyperparameters, `evaluation_report` on the invoice after adaptation, `pipe.save_artifact`,
-  `LayoutLMDocumentQAPipeline.from_artifact` and the reload-parity assertion, and the provenance fields
+  `LayoutLMDocumentQAPipeline.from_artifact` and the reload-parity check that raises an explained `RuntimeError`, and the provenance fields
   `weight_format`, `weight_sha256` and the `corpus` block), the seven expected `outputs/` paths, the learner-facing
   statements (MIT weights, the model never sees pixels, adaptation with gold spans, the CC BY 4.0 corpus, the span
   score as a product of two softmax probabilities that is not a calibrated probability, the two non-neural
@@ -60,7 +63,7 @@ source/provenance and unit checks. They are **not** execution evidence.
 
 | Path | Runtime | Role |
 |---|---|---|
-| Google Colab (supported user path) | Colab CPU runtime (CUDA used automatically when present) | The runtime the tutorial is written for; a clean top-to-bottom run here is promotion evidence |
+| Google Colab (supported user path) | Colab CPU or GPU runtime, Linux x86_64 (CUDA used automatically when present) | The runtime the tutorial is written for; a clean top-to-bottom run here is promotion evidence |
 | Kaggle CLI kernel or equivalent fresh container | Fresh CPU or GPU container, Python 3.12 image; the committed notebook executed verbatim in a fresh interpreter with a `google.colab` shim and **no repository checkout** (the notebook is standalone) | Reproducible clean-room executor of the same class; promotion evidence |
 | Local harness (pre-flight only) | Workstation, sequential cell executor with a `google.colab` shim, pre-staged pins | Builder pre-flight to catch defects before spending cloud runs; **not** a supported runtime and **not** promotion evidence |
 
@@ -80,10 +83,12 @@ Before changing the registry status from `Candidate` to `Release-grade`:
 4. verify that Section 1 reports `NOTEBOOK_SOURCE.repository_revision` equal to the revision recorded in
    `metadata.dimer.generated_from` and that the installed core package versions equal the inline `PINS`
    (= `pyproject.toml`): `torch==2.14.0`, `transformers==4.57.6`, `safetensors==0.8.0`, `numpy==2.5.3`,
-   `pillow==11.3.0`, `huggingface-hub==0.36.2`, `pyarrow==25.0.1` (an interpreter restart after the install is
-   expected where the runtime's preinstalled torch or numpy differ from the pins);
+   `pillow==11.3.0`, `huggingface-hub==0.36.2`, `pyarrow==25.0.1`, imported from the isolated CPython 3.12.12
+   environment Section 1 builds from `tutorials/requirements-colab.lock.txt`; every code cell must complete in a
+   **single pass with no restart** of the runtime and no `RuntimeError` (a run that needs a restart is not promotion
+   evidence);
 5. verify every default-path stage completes:
-   - pinned runtime installed from the inline `PINS` with no GitHub access;
+   - the isolated environment built from the carried hash lock with no GitHub access, and every later cell routed to it;
    - the three carried module cells execute (defining `LayoutLMDocumentQAPipeline`, `verify_snapshot`,
      `stage_missing_files`, `validate_inputs`, `evaluation_report`, `anls`, `exact_match`, `normalize_box`,
      `docqa_metrics`, `last_number_baseline`, `keyword_lookup_baseline`, `fetch_corpus`, `read_corpus`,
@@ -108,18 +113,21 @@ Before changing the registry status from `Candidate` to `Release-grade`:
      `NW-2026-0417`, `Blue Yonder Airlines`, `$1,099.20`, `11 April 2026`, `40`; a different span on another
      runtime is a finding to record, not a failure);
    - Section 6: the last-number baseline (ANLS ≈ 0.41, exact match ≈ 0.25), the keyword-lookup baseline
-     (≈ 0.64 / ≈ 0.59) and the frozen model's test score (ANLS ≈ 0.84, exact match ≈ 0.78 on CPU float32) with the
-     per-field breakdown, and the cell's assertion that the frozen ANLS beats the last-number baseline;
+     (≈ 0.64 / ≈ 0.59) and the frozen model's test score (ANLS ≈ 0.84, exact match ≈ 0.78) with the per-field
+     breakdown (`n` and the `too_few_to_read` flag) and `adapted: False`; the comparisons are recorded, not asserted;
    - Section 7: `pipe.adapt` printing epoch 0 as the frozen model, 28,353,026 trainable of 127,792,898 parameters,
-     595 training questions, and a six-epoch history with validation ANLS rising (≈ 0.82 → ≈ 0.94 in the build
-     record's runs; `best_epoch` in the last epochs);
+     595 training questions, and a six-epoch history with validation ANLS rising from about 0.82 to about 0.95 (the
+     recorded Kaggle Tesla T4 run of `ad2dea7f`: 0.819 → 0.952, epoch 5 kept; a CPU pre-flight reached 0.960 at
+     epoch 5);
    - Section 8: `pipe.evaluate` on the validation and test splits with the four-way comparison, the per-field
-     breakdown and `outputs/…_evaluation_report.json` written (the cell asserts the adapted test ANLS exceeds the
-     frozen one — on the sample ≈ 0.94 versus ≈ 0.84);
+     breakdown, the fields that lost score (the T4 run: `sub_total.discount_price` 1.00 → 0.75 on n = 4), the questions
+     where the two models disagree, the reading line and the run history, and `outputs/…_evaluation_report.json`
+     written (on the sample ≈ 0.94 versus ≈ 0.84);
    - Section 9: the five invoice questions answered by the adapted model with the `sample-sanity` report,
      `outputs/…_answers.csv` and `outputs/…_annotated.png` written; `pipe.save_artifact` writing
      `outputs/…_adapter/{adapter.safetensors,manifest.json}` (66 tensors, about 113 MB) and
-     `LayoutLMDocumentQAPipeline.from_artifact` reloading it with 8/8 identical answers (the cell asserts it);
+     `LayoutLMDocumentQAPipeline.from_artifact` reloading it with 8/8 identical answers (the cell raises an explained
+     error otherwise); Section 10 printing a span and score for each of the three unsupported questions;
      `outputs/…_result.json` written with `NOTEBOOK_SOURCE`, the model identity and licence, the snapshot block
      (`weight_format`, `weight_sha256`), the `corpus` block, the inference-contract items, the comparison, the
      artifact digest, the reload parity, the runtime versions and device;
@@ -136,7 +144,7 @@ A known-failing default path in the supported runtime blocks release (REL11).
 
 | Notebook | Commit / notebook blob | Date (UTC) | Executor | Outcome |
 |---|---|---|---|---|
-| `layoutlm_document_qa_colab.ipynb` (`E2E`) | `8541181` / `ad2dea7f` | 2026-09-19 | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-layoutlm-document-qa` v2; image `torch 2.10.0+cu128` / `transformers 5.0.0` before the pinned install, `torch 2.14.0+cu130` / `transformers 4.57.6` after, Python 3.12.13, `cuda:0`) | **PASSED** — 11/11 code cells ok (1 restart after install cell); 20 files, 515 MB staged from the Hub into a clean cache; comparison {anls: {last_number: 0.406, keyword_lookup: 0.635, frozen: 0.843, adapted: 0.94}, exact_match: {last_number: 0.253, keyword_lookup: 0.594, frozen: 0.782, adapted: 0.921}, delta_vs_frozen: {anls: 0.097, exact_match: 0.14}, by_field: {menu.nm: {n: 50, frozen: 0.79, adapted: 0.92}, sub_total.discount_price: {n: 4, frozen: 1, adapted: 0.75}, sub_total.service_price: {n: 2, frozen: 1, adapted: 1}, sub_total.subtotal_price: {n: 27, frozen: 0.98, adapted: 1}, sub_total.tax_price: {n: 17, frozen: 0.92, adapted: 0.94}, total.cashprice: {n: 35, frozen: 0.85, adapted: 0.9}, total.changeprice: {n: 29, frozen: 0.87, adapted: 1}, total.creditcardprice: {n: 7, frozen: 0.96, adapted: 1}, total.menuqty_cnt: {n: 12, frozen: 0.17, adapted: 0.83}, total.total_price: {n: 46, frozen: 0.91, adapted: 0.95}}}; reload parity {identical_answers: 8, of: 8}; run summary and executed notebook archived under `.agent/backups/kaggle-e2e-2026-09-19/out/dimer-nb2-layoutlm-document-qa/v2/evidence/` in the workspace |
+| `layoutlm_document_qa_colab.ipynb` (`E2E`) | `8541181` / `ad2dea7f` | 2026-09-19 | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-layoutlm-document-qa` v2; image `torch 2.10.0+cu128` / `transformers 5.0.0` before the pinned install, `torch 2.14.0+cu130` / `transformers 4.57.6` after, Python 3.12.13, `cuda:0`) | **Completed in two passes, not promotion evidence** — pass 1 stopped at the in-kernel install cell (`RuntimeError`: cuda-bindings 12.9.4 → 13.4.2 and numpy 2.0.2 → 2.5.3 changed under loaded modules) and pass 2 ran 11/11 code cells after the executor restarted the kernel; NOTEBOOK_SPEC 2.2 §5 does not accept a manual restart; 20 files, 515 MB staged from the Hub into a clean cache; comparison {anls: {last_number: 0.406, keyword_lookup: 0.635, frozen: 0.843, adapted: 0.94}, exact_match: {last_number: 0.253, keyword_lookup: 0.594, frozen: 0.782, adapted: 0.921}, delta_vs_frozen: {anls: 0.097, exact_match: 0.14}, by_field: {menu.nm: {n: 50, frozen: 0.79, adapted: 0.92}, sub_total.discount_price: {n: 4, frozen: 1, adapted: 0.75}, sub_total.service_price: {n: 2, frozen: 1, adapted: 1}, sub_total.subtotal_price: {n: 27, frozen: 0.98, adapted: 1}, sub_total.tax_price: {n: 17, frozen: 0.92, adapted: 0.94}, total.cashprice: {n: 35, frozen: 0.85, adapted: 0.9}, total.changeprice: {n: 29, frozen: 0.87, adapted: 1}, total.creditcardprice: {n: 7, frozen: 0.96, adapted: 1}, total.menuqty_cnt: {n: 12, frozen: 0.17, adapted: 0.83}, total.total_price: {n: 46, frozen: 0.91, adapted: 0.95}}}; reload parity {identical_answers: 8, of: 8}; run summary and executed notebook archived under `.agent/backups/kaggle-e2e-2026-09-19/out/dimer-nb2-layoutlm-document-qa/v2/evidence/` in the workspace |
 | `layoutlm_document_qa_colab.ipynb` (`E2E`) | generated at `7a9a150` / blob `c068cc6f1b8e` | 2026-09-19 | Local pre-flight harness (Windows, CPython 3.12.10, CPU, `google.colab` shim, pins pre-installed, snapshot and corpus cache pre-staged) | PASS — pre-flight only, **not** promotion evidence |
 | `layoutlm_document_qa_colab.ipynb` (`TASK-INFERENCE`, superseded) | `232fc8d` / `935148fc5c95` | 2026-09-14 | Kaggle CPU (`kurtvalcorza/dimer-nb2-layoutlm-document-qa` v1) | PASSED — 8/8 code cells, 239.0 s; evidence for the earlier inference-only notebook, not for the `E2E` blob |
 
@@ -149,14 +157,25 @@ stated runtime, not general estimates.
 
 | Date (UTC) | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|
-| 2026-09-19 | `8541181` / `ad2dea7f` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-layoutlm-document-qa` v2; image `torch 2.10.0+cu128` / `transformers 5.0.0` before the pinned install, `torch 2.14.0+cu130` / `transformers 4.57.6` after, Python 3.12.13, `cuda:0`) | Default sample path, `Run all` from a fresh interpreter with an empty Hugging Face cache and no repository checkout (blob SHA-1 verified against GitHub before execution) | 339.2 s | **PASSED** — 11/11 code cells ok (1 restart after install cell); 20 files, 515 MB staged from the Hub into a clean cache; comparison {anls: {last_number: 0.406, keyword_lookup: 0.635, frozen: 0.843, adapted: 0.94}, exact_match: {last_number: 0.253, keyword_lookup: 0.594, frozen: 0.782, adapted: 0.921}, delta_vs_frozen: {anls: 0.097, exact_match: 0.14}, by_field: {menu.nm: {n: 50, frozen: 0.79, adapted: 0.92}, sub_total.discount_price: {n: 4, frozen: 1, adapted: 0.75}, sub_total.service_price: {n: 2, frozen: 1, adapted: 1}, sub_total.subtotal_price: {n: 27, frozen: 0.98, adapted: 1}, sub_total.tax_price: {n: 17, frozen: 0.92, adapted: 0.94}, total.cashprice: {n: 35, frozen: 0.85, adapted: 0.9}, total.changeprice: {n: 29, frozen: 0.87, adapted: 1}, total.creditcardprice: {n: 7, frozen: 0.96, adapted: 1}, total.menuqty_cnt: {n: 12, frozen: 0.17, adapted: 0.83}, total.total_price: {n: 46, frozen: 0.91, adapted: 0.95}}}; reload parity {identical_answers: 8, of: 8}; run summary and executed notebook archived under `.agent/backups/kaggle-e2e-2026-09-19/out/dimer-nb2-layoutlm-document-qa/v2/evidence/` in the workspace |
+| 2026-09-19 | `8541181` / `ad2dea7f` | Kaggle Tesla T4 (`kurtvalcorza/dimer-nb2-layoutlm-document-qa` v2; image `torch 2.10.0+cu128` / `transformers 5.0.0` before the pinned install, `torch 2.14.0+cu130` / `transformers 4.57.6` after, Python 3.12.13, `cuda:0`) | Default sample path, `Run all` from a fresh interpreter with an empty Hugging Face cache and no repository checkout (blob SHA-1 verified against GitHub before execution) | 339.2 s | **Completed in two passes, not promotion evidence** — pass 1 stopped at the in-kernel install cell (`RuntimeError`: cuda-bindings 12.9.4 → 13.4.2 and numpy 2.0.2 → 2.5.3 changed under loaded modules) and pass 2 ran 11/11 code cells after the executor restarted the kernel; NOTEBOOK_SPEC 2.2 §5 does not accept a manual restart; 20 files, 515 MB staged from the Hub into a clean cache; comparison {anls: {last_number: 0.406, keyword_lookup: 0.635, frozen: 0.843, adapted: 0.94}, exact_match: {last_number: 0.253, keyword_lookup: 0.594, frozen: 0.782, adapted: 0.921}, delta_vs_frozen: {anls: 0.097, exact_match: 0.14}, by_field: {menu.nm: {n: 50, frozen: 0.79, adapted: 0.92}, sub_total.discount_price: {n: 4, frozen: 1, adapted: 0.75}, sub_total.service_price: {n: 2, frozen: 1, adapted: 1}, sub_total.subtotal_price: {n: 27, frozen: 0.98, adapted: 1}, sub_total.tax_price: {n: 17, frozen: 0.92, adapted: 0.94}, total.cashprice: {n: 35, frozen: 0.85, adapted: 0.9}, total.changeprice: {n: 29, frozen: 0.87, adapted: 1}, total.creditcardprice: {n: 7, frozen: 0.96, adapted: 1}, total.menuqty_cnt: {n: 12, frozen: 0.17, adapted: 0.83}, total.total_price: {n: 46, frozen: 0.91, adapted: 0.95}}}; reload parity {identical_answers: 8, of: 8}; run summary and executed notebook archived under `.agent/backups/kaggle-e2e-2026-09-19/out/dimer-nb2-layoutlm-document-qa/v2/evidence/` in the workspace |
 | 2026-09-19 | generated at `7a9a150` / blob `c068cc6f1b8e` | Local Windows-venv harness (`run_nb_local.py`: nbclient, fresh `python3` kernel, `CUDA_VISIBLE_DEVICES=-1`, `HF_HUB_OFFLINE=1`, `DIMER_NOTEBOOK_CI_PREINSTALLED=1`), Python 3.12.10, torch 2.14.0+cu130, transformers 4.57.6, snapshot and CORD-v2 column cache pre-staged | Default sample path, all 11 code cells: pinned install skipped (pre-installed), `stage_missing_files` reported nothing to fetch, `verify_snapshot` PASS (8 files), corpus columns read from the pre-staged cache and split 595 / 152 / 229 over 119 / 30 / 50 receipts, fit check dropped nothing, five invoice answers exact (`sample-sanity`), baselines 0.406 / 0.635, frozen test ANLS 0.843 (41.0 s), six epochs 934.3 s (validation ANLS 0.819 → 0.870 → 0.908 → 0.894 → 0.925 → 0.960 → 0.956, epoch 5 kept), adapted test ANLS 0.942 / exact match 0.930, invoice 5/5 after adaptation, adapter 113,419,976 B / 66 tensors, reload parity 8/8, 7 outputs written; the committed blob differs from the executed one in markdown prose only (CPU timing estimates corrected after this run) | 1218.7 s | PASS — pre-flight only; not promotion evidence |
 
 ## Current status
 
-**Release-grade.** The `E2E` notebook blob `ad2dea7f` (committed at `8541181`) executed top-to-bottom in a clean Kaggle Tesla T4 runtime on 2026-09-19 (11/11 ok (1 restart after install cell), 339.2 s, 20 files, 515 MB fetched from the Hub and digest-verified inside the notebook) with no repository checkout — the REL1/REL10 supported-runtime evidence this file gates on. The local pre-flight rows above are what preceded it and remain history. Any later change to the carried modules or to the notebook produces a new blob, and the registry returns to **Candidate** until a clean run of that blob is recorded here.
+**Candidate** — the `E2E` notebook was regenerated on 2026-10-04 to fix the 2026-10-02 Notebook Review Framework v1 findings (LDQ-M1..M3, LDQ-m1..m5; review PR #13): it now builds a uv isolated environment from a hash lock (no in-kernel install, no restart; Linux x86_64 only), starts every adaptation from the pretrained model, checks a BYOD dataset's real minimum and adds the guided layer. No hosted run of the new blob is recorded yet. The previous blob `ad2dea7f` (`8541181`) ran on a Kaggle Tesla T4 on 2026-09-19 only after a manual restart of the kernel (two passes), which is not promotion evidence; see `docs/release-verification.md`. The local pre-flight rows above remain history.
 
 Facts a reviewer should still weigh: the frozen model is already strong on receipt totals (it was fine-tuned on DocVQA), so the gain is measured per field (item count 0.17 → 0.83, item name 0.79 → 0.92, change 0.87 → 1.00 on the T4 run; overall ANLS 0.843 → 0.940) and is several points, not a rescue; the questions are templated from CORD's field categories, not written by people; CORD's words and boxes are annotations, cleaner than any OCR engine's output on a photographed receipt; and the adapted model's answers on the rendered invoice (5/5 on the T4 run) are one page of evidence about behaviour outside the corpus, not a measurement.
+
+### Review fixes of 2026-10-02 (LDQ-M1..M3, LDQ-m1..m5) — not yet hosted
+
+Applies to the primary `E2E` notebook. The [review](https://github.com/kurtvalcorza/layoutlm-document-qa-pipeline/pull/13) of `9c5ccfd` (blob `ad2dea7f`) found 3 Major and 5 Minor issues; the fixes are on the review branch of PR #13.
+
+- **Runtime (LDQ-M1).** Generator /2.1 (the fleet's, as in florence2-vision-language-pipeline `9c4e95a`): Section 1 verifies a pinned uv 0.12.15 wheel by size and SHA-256, builds a managed CPython 3.12.12 environment, installs `tutorials/requirements-colab.lock.txt` with `--require-hashes --only-binary :all:` and routes every later cell to one worker there. The lock is florence2-vision-language-pipeline's byte for byte (identical pins; Colab T4 PASS at `9c4e95a`), and its 48 versions and hashes equal this repository's workshop lock (Colab CLI T4 PASS at `cf98b6e`). No kernel install, no restart; **Linux x86_64 only**.
+- **Re-runs (LDQ-M2, LDQ-M3).** `reset_to_pretrained()` at the top of Sections 5, 6 and 7 reloads the verified snapshot when the model in memory is adapted; Section 6 refuses an adapted model; `adapt()` refuses an already adapted pipeline. The documented experiments and the BYOD re-run therefore always start from the base, epoch 0 is the frozen model, and the exported adapter reproduces the evaluated model.
+- **BYOD (LDQ-m1).** `split_minimums()` (8 / 2 / 2) and `byod_record_limits()` (12 records with one question per page); refusals name the split, the counts and the minimum; a malformed JSONL line is refused with its line number; `BYOD_PATH` reads a file on any runtime; a cancelled upload or a runtime without the Colab dialog gets an actionable message.
+- **Prose (LDQ-m2, LDQ-m4, LDQ-m5).** Single braces in the schema and id pattern; one expected validation ANLS quoting the recorded run (0.819 → 0.952, Kaggle Tesla T4) with the run-to-run spread; the discount regression (1.00 → 0.75, n = 4) stated; fields that lose score and model disagreements printed; outcomes recorded instead of asserted; the guided layer added (see `tutorials/README.md`).
+- **Local verification (not clean-runtime evidence).** A CPU harness executed the regenerated notebook's own code cells in order in one namespace (torch 2.14.0+cpu, transformers 4.57.6; the real pinned snapshot and the CORD-v2 column cache pre-staged; `DIMER_NOTEBOOK_CI_PREINSTALLED=1` in place of the Linux-only isolated environment), at reduced scale (160 / 40 / 60 records, two epochs at `LEARNING_RATE = 1e-4`): the default pass adapted the model (validation ANLS 0.750 → 0.882, test 0.830 → 0.882); the 2-block experiment re-run from Section 7 reloaded the base, started at epoch 0 = 0.750, exported 34 tensors with every other tensor equal to the base, and reloaded with 8/8 (and 40/40) identical answers; a 60-record BYOD re-run from Section 4 through `BYOD_PATH` (no `google.colab`) scored the frozen model exactly as a fresh base pipeline (test ANLS 0.717, validation 0.900) and reloaded 8/8. Split counts and digests equal the recorded run. Not run here: the uv bootstrap and lock install, the full six-epoch schedule, the upload dialog.
+- **Still required:** a hosted single-pass Run all of the new blob (Colab T4 or Kaggle), the Section 11 activity, and one BYOD run with one rejected input (REL12). Status is **Candidate**.
 
 ## Supplemental document question answering workshop — `tutorials/DIMER_Document_QA_LayoutLM_vs_Pix2Struct_Workshop.ipynb`
 

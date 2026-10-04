@@ -82,6 +82,12 @@ SAMPLE_SPLIT = {
 }  # receipts (pages), not questions; 199 unique pages
 MIN_RECORDS = 8
 MAX_RECORDS = 20_000
+# A BYOD split must leave records in every split the notebook scores: at least MIN_RECORDS training records
+# and at least two validation (epoch selection) and two test (held-out evaluation) records.
+MIN_VAL_RECORDS = 2
+MIN_TEST_RECORDS = 2
+BYOD_VAL_FRACTION = 0.15
+BYOD_TEST_FRACTION = 0.2
 _ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 
 
@@ -456,25 +462,53 @@ def check_split_disjoint(splits: Mapping[str, Sequence[Mapping[str, Any]]]) -> d
     return {name: len(records) for name, records in splits.items()}
 
 
+def split_minimums() -> dict[str, int]:
+    """The fewest records each split of a BYOD dataset must hold for the notebook to run end to end."""
+    return {"train": MIN_RECORDS, "validation": MIN_VAL_RECORDS, "test": MIN_TEST_RECORDS}
+
+
+def _target_sizes(n: int, val_fraction: float, test_fraction: float) -> tuple[int, int]:
+    return max(1, round(n * test_fraction)), round(n * val_fraction)
+
+
+def byod_record_limits(
+    val_fraction: float = BYOD_VAL_FRACTION, test_fraction: float = BYOD_TEST_FRACTION
+) -> tuple[int, int]:
+    """`(minimum, maximum)` record counts of a BYOD dataset with one question per page: the smallest
+    dataset whose seeded split leaves every split at its `split_minimums()` (12 with the default
+    fractions). Pages with several questions move whole, so such a dataset can need more records."""
+    minimums = split_minimums()
+    for n in range(1, MAX_RECORDS + 1):
+        n_test, n_val = _target_sizes(n, val_fraction, test_fraction)
+        n_val = min(n_val, n - n_test)
+        if (
+            n_test >= minimums["test"]
+            and n_val >= minimums["validation"]
+            and n - n_test - n_val >= minimums["train"]
+        ):
+            return n, MAX_RECORDS
+    raise ValueError("no dataset size satisfies the split minimums with these fractions")
+
+
 def split_dataset(
     records: Sequence[Mapping[str, Any]],
     *,
-    val_fraction: float = 0.15,
-    test_fraction: float = 0.2,
+    val_fraction: float = BYOD_VAL_FRACTION,
+    test_fraction: float = BYOD_TEST_FRACTION,
     seed: int = 0,
 ) -> dict[str, list[dict[str, Any]]]:
     """Seeded split of a BYOD dataset into train/validation/test **by page**: every question on the same page
-    lands in the same split, so a test page is never seen in training."""
+    lands in the same split, so a test page is never seen in training. Each split must reach its
+    `split_minimums()`; a refusal names the split, the counts and the dataset minimum."""
     if not (0.0 <= val_fraction < 1.0 and 0.0 < test_fraction < 1.0 and val_fraction + test_fraction < 1.0):
         raise ValueError("fractions must satisfy 0 <= val < 1, 0 < test < 1, val + test < 1")
-    checked = validate_dataset(records)["records"]
+    checked = validate_dataset(records, min_records=1)["records"]
     groups: dict[str, list[dict[str, Any]]] = {}
     for record in checked:
         groups.setdefault(record["page_id"], []).append(record)
     order = list(groups.values())
     random.Random(seed).shuffle(order)
-    n_test = max(1, round(len(checked) * test_fraction))
-    n_val = round(len(checked) * val_fraction)
+    n_test, n_val = _target_sizes(len(checked), val_fraction, test_fraction)
     splits: dict[str, list[dict[str, Any]]] = {"test": [], "validation": [], "train": []}
     for group in order:
         if len(splits["test"]) < n_test:
@@ -483,29 +517,59 @@ def split_dataset(
             splits["validation"].extend(group)
         else:
             splits["train"].extend(group)
-    if len(splits["train"]) < MIN_RECORDS:
-        raise ValueError(
-            f"split leaves {len(splits['train'])} training records; at least {MIN_RECORDS} are required"
-        )
+    counts = "/".join(str(len(splits[name])) for name in ("train", "validation", "test"))
+    for name, least in split_minimums().items():
+        if len(splits[name]) < least:
+            try:
+                need = (
+                    "a dataset needs at least "
+                    f"{byod_record_limits(val_fraction, test_fraction)[0]} records with "
+                    "one question per page (more when pages carry several questions, because a page never "
+                    "straddles two splits). Add records"
+                )
+            except ValueError:
+                need = "no dataset size gives every split its minimum with these fractions"
+            raise ValueError(
+                f"the {name} split would hold {len(splits[name])} records (at least {least} are required): "
+                f"{len(checked)} records on {len(groups)} pages, split by page into train/validation/test as "
+                f"{counts}; {need}"
+            )
     return splits
 
 
 def load_byod_dataset(path: str | Path) -> list[dict[str, Any]]:
     """Read records from a JSON array or a JSONL file of
-    ``{id, page_id, question, words, boxes, image_size, answer_start, answer_end}`` objects."""
+    ``{id, page_id, question, words, boxes, image_size, answer_start, answer_end}`` objects. A parse
+    error names the file and its line."""
     file_path = Path(path)
     if not file_path.is_file():
         raise FileNotFoundError(f"dataset not found: {file_path}")
     suffix = file_path.suffix.lower()
+    if suffix not in (".json", ".jsonl"):
+        raise ValueError("BYOD datasets must be .json or .jsonl")
     text = file_path.read_text(encoding="utf-8")
     if suffix == ".jsonl":
-        return [json.loads(line) for line in text.splitlines() if line.strip()]
-    if suffix == ".json":
+        out = []
+        for number, line in enumerate(text.splitlines(), start=1):
+            if not line.strip():
+                continue
+            try:
+                out.append(json.loads(line))
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"{file_path.name}, line {number}: not valid JSON ({exc.msg} at column {exc.colno}); "
+                    "each line of a .jsonl file must hold one complete record object"
+                ) from None
+        return out
+    try:
         data = json.loads(text)
-        if not isinstance(data, list):
-            raise ValueError("JSON dataset must be an array of records")
-        return data
-    raise ValueError("BYOD datasets must be .json or .jsonl")
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"{file_path.name}, line {exc.lineno}: not valid JSON ({exc.msg} at column {exc.colno})"
+        ) from None
+    if not isinstance(data, list):
+        raise ValueError("JSON dataset must be an array of records")
+    return data
 
 
 def write_dataset_jsonl(records: Sequence[Mapping[str, Any]], path: str | Path) -> Path:
