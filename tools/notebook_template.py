@@ -21,8 +21,29 @@ TEMPLATE = {
     "notebook_name": "layoutlm_document_qa_colab.ipynb",
     "profile": "E2E",
     "mode": "GUIDED",
+    "isolated_runtime": True,
+    "infrastructure_labels": True,
+    # The fleet's uv isolated-environment mechanism (bioclip2-biodiversity-pipeline, siglip-v1-zero-shot-pipeline): a
+    # managed CPython, a size- and SHA-256-verified uv wheel, and a lock compiled from the pyproject pins with
+    # `uv pip compile pyproject.toml --python-version 3.12 --python-platform x86_64-manylinux_2_28 --generate-hashes
+    # --only-binary :all: -o tutorials/requirements-colab.lock.txt`.
+    "managed_python": "3.12.12",
+    "uv": {
+        "version": "0.12.15",
+        "url": "https://files.pythonhosted.org/packages/1e/fd/432451d732917c49152a291de3ef171aa6b0f1a22d39780fb2c1f085ca4c/uv-0.12.15-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "bytes": 20081404,
+        "sha256": "aee9802f46bae436bd91751bb33ddeb379ef1596b5c19df193219d545d244b60",
+    },
+    "lock": "tutorials/requirements-colab.lock.txt",
+    "guided": {
+        "opening": [
+            (
+                "**Who this notebook is for.** A learner who knows basic Python, has run a Colab or Jupyter notebook, and wants to see how a layout-aware document reader answers questions about a receipt from its OCR words and their positions — and how to measure it honestly, adapt it to a new document type, and ship the adaptation. No prior experience with LayoutLM or fine-tuning is assumed; *span extraction*, *ANLS*, *fit check*, *baseline* and the other terms are explained where they first matter and again in the **Glossary**. The intended audience is learners and practitioners evaluating document QA for their own forms; this is a teaching run, not a benchmark. CPU works (about twenty minutes of model time); a T4 GPU is used automatically and is much faster.\n\n**Input → Model → Output.**\n\n| | What it is in this notebook |\n|---|---|\n| Input | a question plus one page's OCR words, one pixel box per word and the page size (default: 976 templated questions over 199 CORD-v2 receipts, and five authored questions over a rendered invoice; BYOD: your own labelled pages as JSON or JSONL) |\n| Model | LayoutLM (text + 2-D position embeddings) with an extractive span head, fine-tuned on DocVQA by Impira; Section 7 trains its last four encoder blocks and the span head |\n| Output | the answer as a contiguous word span with its indices and a ranking score; ANLS and exact match against gold spans, beside two non-neural baselines; a 113 MB adapter that reloads to identical answers |\n\n**How to use this notebook.** Choose a runtime (**Runtime → Change runtime type → T4 GPU** is faster; CPU works), then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook's own Python, so no restart is needed. Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the pinned model snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the knobs. Re-running Section 6 or 7 starts again from the frozen model, so a frozen score is never taken from an adapted model. Before each principal result the notebook asks you to **Predict**; after it come **What to notice** and a collapsible **Check your reasoning** with a worked answer from the recorded Kaggle T4 run of 19 September 2026 (`docs/release-verification.md`; the epoch-by-epoch validation curve is from the recorded CPU pre-flight of the same day). A different GPU or CPU can move the last digit. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end.\n\n**Roadmap:** 1–3 infrastructure → 4 the receipt corpus, validation and a page-disjoint split *(evaluation practice: leakage)* → 5 the fit check and the inference contract on an invoice *(core concept: span answers and what the score means)* → 6 two baselines and the frozen model *(evaluation practice)* → 7 bounded fine-tuning *(core concept)* → 8 held-out evaluation, per field → 9 re-read the invoice, export and reload the adapter *(engineering)* → interpretation, troubleshooting, glossary, conclusion."
+            )
+        ]
+    },
     "run_all": (
-        "Selecting **Run all** in a fresh supported runtime installs the pinned dependencies, stages and digest-verifies the "
+        "Selecting **Run all** in a fresh supported runtime builds an isolated environment from the hash-locked pins (nothing is installed into the notebook's own Python, so no restart is needed and Run all completes in one pass), stages and digest-verifies the "
         "pinned `impira/layoutlm-document-qa` snapshot (safetensors, 511 MB), reads the `ground_truth` column of two "
         "digest-pinned CORD-v2 receipt shards from the Hugging Face Hub (about 0.4 MB over HTTP range requests, no credential), "
         "turns the 199 unique receipts into templated question/answer records over their real OCR words and boxes and cuts "
@@ -37,9 +58,9 @@ TEMPLATE = {
         "twenty minutes of model time after the downloads; a CUDA runtime is used automatically when present."
     ),
     "byod": (
-        "After the tutorial workflow completes, set `USE_BYOD = True` in Section 4 and re-run from that cell to supply your own "
-        "labelled pages as a JSON array or a JSONL file of `{{id, page_id, question, words, boxes, image_size, answer_start, "
-        "answer_end}}` records — the page's OCR words with one pixel `[x0, y0, x1, y1]` box each, the page size, and the "
+        "After the tutorial workflow completes, set `USE_BYOD = True` in Section 4 — with `BYOD_PATH` set to your file (Kaggle, Jupyter) or left empty for the Colab upload dialog — and re-run from that cell to supply your own "
+        "labelled pages as a JSON array or a JSONL file of `{id, page_id, question, words, boxes, image_size, answer_start, "
+        "answer_end}` records — the page's OCR words with one pixel `[x0, y0, x1, y1]` box each, the page size, and the "
         "inclusive word indices of the gold span. They pass through the same validation, seeded page-disjoint split, fit "
         "check, baselines, fine-tuning, held-out evaluation, artifact export and reload-parity cells as the CORD-v2 sample. "
         "The expected schema and the ceilings are stated in the Prerequisites and in Section 4, and uploaded files stay inside "
@@ -123,9 +144,9 @@ TEMPLATE = {
         "documents. The repository exposes none of these."
     ),
     "prerequisites": [
-        "- **Runtime:** a fresh supported runtime (Google Colab or Jupyter, Python 3.12). The default path runs on CPU (float32) and uses CUDA automatically when available. CPU is adequate but not fast: the build record measured about 7 s to load and digest-verify the 514 MB snapshot, about 41 s to score the 229 test questions, and about two and a half minutes per epoch of fine-tuning the last four encoder blocks and the span head on 595 training questions (validation scoring included; 934 s for six epochs in the build record). The pinned `torch==2.14.0` install and the 511 MB checkpoint are the large downloads of the run.",
+        "- **Runtime:** a fresh supported runtime (Google Colab or Jupyter, Python 3.12). The default path runs on CPU (float32) and uses CUDA automatically when available. CPU is adequate but not fast: the build record measured about 7 s to load and digest-verify the 514 MB snapshot, about 41 s to score the 229 test questions, and about two and a half minutes per epoch of fine-tuning the last four encoder blocks and the span head on 595 training questions (validation scoring included; 934 s for six epochs in the build record). Section 1 builds a separate environment from the hash-locked pins (nothing is installed into the notebook's own Python, so no restart is needed); its PyTorch wheels and the 511 MB checkpoint are the large downloads of the run.",
         "- **Knowledge:** basic Python and PIL; what extractive (span) question answering over OCR tokens is; why a start/end softmax product is not a calibrated confidence; what normalised Levenshtein similarity (ANLS) measures and why neither it nor exact match is a human judgement.",
-        "- **Data contract:** records are `{{id, page_id, question, words, boxes, image_size, answer_start, answer_end}}` — the page's OCR words (1..`MAX_WORDS` = 2,000, non-empty) with one pixel `[x0, y0, x1, y1]` box per word inside the page, the page size in pixels (`MIN_IMAGE_SIDE`..`MAX_IMAGE_SIDE` = 1..10,000), a question of at most `MAX_QUESTION_CHARS` (256) characters, and the inclusive word indices of the gold span; an optional `answers` list must start with the span text. Ids match `[A-Za-z0-9_.:-]{{1,64}}` and are unique; a dataset needs 8..20,000 records; every question on the same page lands in the same split so a test page is never trained on; a question + page that needs more than one 512-token window is dropped from training by the fit check, never truncated. BYOD accepts a JSON array or JSONL in that shape.",
+        "- **Data contract:** records are `{id, page_id, question, words, boxes, image_size, answer_start, answer_end}` — the page's OCR words (1..`MAX_WORDS` = 2,000, non-empty) with one pixel `[x0, y0, x1, y1]` box per word inside the page, the page size in pixels (`MIN_IMAGE_SIDE`..`MAX_IMAGE_SIDE` = 1..10,000), a question of at most `MAX_QUESTION_CHARS` (256) characters, and the inclusive word indices of the gold span; an optional `answers` list must start with the span text. Ids match `[A-Za-z0-9_.:-]{1,64}` and are unique; a dataset needs 8..20,000 records; every question on the same page lands in the same split so a test page is never trained on; a question + page that needs more than one 512-token window is dropped from training by the fit check, never truncated. BYOD accepts a JSON array or JSONL in that shape.",
         "- **Validation is structural, not semantic:** nothing checks that a question is answerable from its page beyond the gold span lying inside the words, or that a gold span is the *best* answer — a mislabelled corpus is fine-tuned on without complaint.",
         "- **Privacy:** Do not upload confidential or restricted data to a hosted runtime unless you are authorized to process it there — an internal document set with its field annotations is exactly that. The default path uploads nothing.",
         "- **External access (data):** besides the model snapshot, the default path reads the `ground_truth` column of two objects in the Hub dataset repository `naver-clova-ix/cord-v2` at the immutable revision `7f0115a4…` (`data/test-…parquet`, 234,202,795 bytes, SHA-256 `51c65f17…`, and `data/validation-…parquet`, 242,080,800 bytes, SHA-256 `0d0f6dac…`): the declared size and SHA-256 of each file are checked against the pins before any byte is read, only the parquet footer and that one column are fetched over HTTPS range requests, and the decoded column is refused unless its own SHA-256 matches; the corpus is CC BY 4.0 (Park et al., 2019). No image is downloaded.",
@@ -149,7 +170,15 @@ TEMPLATE = {
                 "to `outputs/{stem}_train.jsonl` in the shape BYOD expects.\n\n"
                 "Look for: 100 + 100 raw rows, three digests, splits 595 / 152 / 229 questions over 119 / 30 / 50 receipts, "
                 "the field mix, and four refusal probes — a duplicate id, a gold span outside the words, a box outside the "
-                "page and a dataset too small to split — each rejected before `torch` does anything."
+                "page and a dataset too small to split — each rejected before `torch` does anything. For BYOD, set `BYOD_PATH` "
+                "to your `.json`/`.jsonl` file on Kaggle or Jupyter, or leave it empty on Colab for the upload dialog; a "
+                "missing file, a cancelled upload and an unreadable record are refused with a message naming the file.\n\n"
+                "**Predict:** the split is cut *by receipt*. Why does that matter more than cutting by question?\n\n"
+                "<details><summary>Check your reasoning</summary>\n\n"
+                "Every question about one receipt shares its words and boxes; split by question and the test set would ask "
+                "about pages the model was trained on. The recorded run printed 595 / 152 / 229 questions over 119 / 30 / 50 "
+                "receipts, and all four probes were rejected.\n\n"
+                "</details>"
             ),
             "code": (
                 "import collections\n"
@@ -157,16 +186,45 @@ TEMPLATE = {
                 "import io\n"
                 "import json\n\n"
                 "USE_BYOD = False  # @param {{type:\"boolean\"}}\n"
-                "SPLIT_SEED = 42  # @param {{type:\"integer\"}}\n\n"
+                "# Kaggle / Jupyter: the path of one .json or .jsonl file. Empty: the Colab upload dialog.\n"
+                "BYOD_PATH = ''  # @param {{type:\"string\"}}\n"
+                "SPLIT_SEED = 42  # @param {{type:\"integer\"}}\n\n\n"
+                "def byod_file(path_text):\n"
+                "    \"\"\"The BYOD dataset file: BYOD_PATH, or exactly one Colab upload; each refusal says what to do.\"\"\"\n"
+                "    if path_text.strip():\n"
+                "        path = Path(path_text.strip()).expanduser()\n"
+                "        if not path.is_file():\n"
+                "            raise FileNotFoundError(f'BYOD_PATH {{str(path)!r}} is not a file: give one .json or .jsonl file of labelled records')\n"
+                "        return path\n"
+                "    try:\n"
+                "        from google.colab import files\n"
+                "    except ImportError:\n"
+                "        raise RuntimeError('USE_BYOD = True but BYOD_PATH is empty and this runtime has no Colab upload dialog: set BYOD_PATH to one .json or .jsonl file') from None\n"
+                "    uploaded = files.upload() or {{}}\n"
+                "    if len(uploaded) != 1:\n"
+                "        raise RuntimeError(f'expected exactly one uploaded .json or .jsonl file, got {{len(uploaded)}} ({{sorted(uploaded) or \"upload cancelled or empty\"}}): run this cell again, or set BYOD_PATH')\n"
+                "    file_name, payload = next(iter(uploaded.items()))\n"
+                "    path = Path('work') / Path(file_name).name\n"
+                "    path.parent.mkdir(parents=True, exist_ok=True)\n"
+                "    path.write_bytes(payload)\n"
+                "    return path\n\n\n"
                 "os.makedirs('outputs', exist_ok=True)\n"
                 "if USE_BYOD:\n"
-                "    from google.colab import files\n"
-                "    uploaded = files.upload()\n"
-                "    file_name, payload = next(iter(uploaded.items()))\n"
-                "    byod_path = Path('work') / file_name\n"
-                "    byod_path.parent.mkdir(parents=True, exist_ok=True)\n"
-                "    byod_path.write_bytes(payload)\n"
-                "    records = load_byod_dataset(byod_path)\n"
+                "    byod_path = byod_file(BYOD_PATH)\n"
+                "    file_name = byod_path.name\n"
+                "    try:\n"
+                "        records = load_byod_dataset(byod_path)\n"
+                "    except ValueError as exc:\n"
+                "        where = ''\n"
+                "        if byod_path.suffix.lower() == '.jsonl':\n"
+                "            for number, line in enumerate(byod_path.read_text(encoding='utf-8').splitlines(), start=1):\n"
+                "                try:\n"
+                "                    if line.strip():\n"
+                "                        json.loads(line)\n"
+                "                except ValueError:\n"
+                "                    where = f' line {{number}}'\n"
+                "                    break\n"
+                "        raise ValueError(f'{{file_name}}{{where}}: {{exc}}') from None\n"
                 "    splits = split_dataset(records, seed=SPLIT_SEED)\n"
                 "    data_source = 'BYOD (' + file_name + ')'\n"
                 "    raw_rows = {{'byod': len(records)}}\n"
@@ -219,7 +277,13 @@ TEMPLATE = {
                 "**product of the start and end softmax probabilities of the chosen span within its window** — a ranking "
                 "signal over spans of this page, **not a calibrated probability** that the answer is right, and never a "
                 "signal that the question is answerable. Whether the answers are *right* is what Section 6 measures on 229 "
-                "gold spans, not what five authored pairs can tell you."
+                "gold spans, not what five authored pairs can tell you.\n\n"
+                "**Predict:** will the frozen model get all five invoice questions right? Is a score of 0.9 a 90 % chance of being right?\n\n"
+                "<details><summary>Check your reasoning</summary>\n\n"
+                "The recorded builds answered all five exactly (verdict `sample-sanity`): the invoice is clean, rendered with "
+                "perfect word boxes. And no — the score ranks spans within one page; it is not a calibrated probability, and "
+                "the model returns its best span even for a question the page cannot answer.\n\n"
+                "</details>"
             ),
             "code": (
                 "import time\n\n"
@@ -321,9 +385,27 @@ TEMPLATE = {
                 "lower-casing, punctuation removal and whitespace collapsing. Expect the frozen model to be strong already — "
                 "it was fine-tuned on DocVQA, and receipt totals are what it reads best — and read the per-field breakdown: "
                 "the build record measured ANLS 0.98 on subtotals but 0.17 on *How many items were bought?* and 0.79 on item "
-                "names, which is where Section 7 has room to move."
+                "names, which is where Section 7 has room to move. The cell records a verdict — whether the frozen model is "
+                "above the last-number baseline — instead of stopping the notebook, so a BYOD run where it is not still "
+                "reaches the export. If you re-run this cell after Section 7, it first reloads the frozen model from the "
+                "verified snapshot and says so.\n\n"
+                "**Predict:** rank the last-number baseline, the keyword-lookup baseline and the frozen model by test ANLS. Which field will the frozen model find hardest?\n\n"
+                "**What to notice:** the gap between the keyword-lookup baseline and the frozen model, and the per-field table.\n\n"
+                "<details><summary>Check your reasoning</summary>\n\n"
+                "Recorded run: last-number 0.406, keyword lookup 0.635, frozen 0.843 ANLS (exact match 0.253 / 0.594 / "
+                "0.782). The hardest field was *How many items were bought?* (`total.menuqty_cnt`, frozen ANLS 0.17 over 12 "
+                "questions): the count is a small number the model was never trained to read as a total.\n\n"
+                "</details>"
             ),
             "code": (
+                "def frozen_pipeline():\n"
+                "    \"\"\"The model scored here and trained in Section 7 must be the frozen base: a re-run after Section 7 reloads it.\"\"\"\n"
+                "    global pipe\n"
+                "    if pipe.adapter is not None:\n"
+                "        pipe = LayoutLMDocumentQAPipeline.from_pretrained(weights_dir=WEIGHTS_DIR)\n"
+                "        print('Reloaded the frozen model from the verified snapshot: the loaded pipeline carried an adaptation from an earlier run.')\n"
+                "    return pipe\n\n\n"
+                "frozen_pipeline()\n"
                 "baseline_last = last_number_baseline(test_records)\n"
                 "baseline_lookup = keyword_lookup_baseline(test_records)\n"
                 "print({{'last_number_baseline': {{'anls': round(baseline_last['anls'], 3), 'exact_match': round(baseline_last['exact_match'], 3), 'n': baseline_last['n']}}}})\n"
@@ -343,7 +425,8 @@ TEMPLATE = {
                 "for record in test_records[:3]:\n"
                 "    item = pipe.answer(record['question'], words=record['words'], boxes=record['boxes'], image_size=record['image_size'])\n"
                 "    print({{'question': record['question'], 'frozen': item['answer'], 'gold': gold_texts(record)}})\n"
-                "assert frozen_test['anls'] > baseline_last['anls']"
+                "frozen_verdict = 'above the last-number baseline' if frozen_test['anls'] > baseline_last['anls'] else 'not above the last-number baseline'\n"
+                "print({{'frozen_vs_last_number_baseline': frozen_verdict}})"
             ),
         },
         {
@@ -359,7 +442,14 @@ TEMPLATE = {
                 "Watch validation ANLS move from about 0.82 to about 0.96 over six epochs (about two and a half minutes per epoch on "
                 "CPU, validation scoring included; the build record kept epoch 5). The build record's counter-examples are in the model card — two trainable "
                 "blocks reach about 0.91 test ANLS in the same six epochs; the default is the configuration that captured most "
-                "of the gain at the same CPU cost."
+                "of the gain at the same CPU cost. Re-running this cell trains from the frozen model again (it reloads it "
+                "first if the pipeline already carries an adaptation), so epoch 0 is always the frozen model.\n\n"
+                "**Predict:** will validation ANLS rise at every epoch?\n\n"
+                "<details><summary>Check your reasoning</summary>\n\n"
+                "Not necessarily. The recorded CPU pre-flight went 0.819 → 0.870 → 0.908 → 0.894 → 0.925 → 0.960 → 0.956: "
+                "a dip at epoch 3 and a last epoch slightly below epoch 5, which is why the epoch with the highest validation "
+                "ANLS (epoch 5) is kept rather than the last one.\n\n"
+                "</details>"
             ),
             "code": (
                 "EPOCHS = 6  # @param {{type:\"integer\"}}\n"
@@ -374,6 +464,7 @@ TEMPLATE = {
                 "    if 'note' in entry:\n"
                 "        row['note'] = entry['note']\n"
                 "    print(row)\n\n\n"
+                "frozen_pipeline()  # a re-run trains from the frozen model, never on top of the previous adaptation\n"
                 "t0 = time.perf_counter()\n"
                 "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE, batch_size=BATCH_SIZE, trainable_encoder_layers=TRAINABLE_ENCODER_LAYERS, progress=report)\n"
                 "adapt_seconds = round(time.perf_counter() - t0, 1)\n"
@@ -386,12 +477,20 @@ TEMPLATE = {
                 "The test receipts were never used for training or epoch selection, and no test page — by id or by word "
                 "content — appears in the training or validation splits. The adapted model is scored exactly as the frozen "
                 "model was in Section 6, the four numbers are put side by side and the per-field breakdown is repeated. Look "
-                "for an ANLS gain of several points concentrated in the fields the frozen model missed — the cell asserts the "
-                "adapted test ANLS is above the frozen one — and for the same three questions answered by the adapted model. "
+                "for an ANLS gain of several points concentrated in the fields the frozen model missed — the cell records a "
+                "verdict (`improved`, `no gain` or `worse` against the frozen test ANLS) instead of stopping, so a BYOD run "
+                "without a gain still exports — and for the same three questions answered by the adapted model. "
                 "Two hundred and twenty-nine questions over 50 receipts from one seeded split of one corpus give **no "
                 "dispersion estimate**; the deltas are sample-sanity evidence that the adaptation contract works, not a "
                 "benchmark, and a gain on CORD receipts with their annotated OCR says nothing about your documents or your OCR "
-                "until you measure it there."
+                "until you measure it there.\n\n"
+                "**Predict:** by how much will held-out ANLS move, and will any field get worse?\n\n"
+                "<details><summary>Check your reasoning</summary>\n\n"
+                "Recorded run: adapted 0.94 against frozen 0.843 (+0.097 ANLS; exact match +0.14), verdict `improved`. Most "
+                "of the gain is in item counts (`total.menuqty_cnt` 0.17 → 0.83), item names (0.79 → 0.92) and change lines "
+                "(0.87 → 1.0) — but `sub_total.discount_price` fell from 1.0 to 0.75 on its four questions: adaptation can "
+                "cost a small field, and four questions are too few to tell noise from harm.\n\n"
+                "</details>"
             ),
             "code": (
                 "adapted_test = pipe.evaluate(test_records)\n"
@@ -403,6 +502,9 @@ TEMPLATE = {
                 "    'delta_vs_frozen': {{'anls': round(adapted_test['anls'] - frozen_test['anls'], 3), 'exact_match': round(adapted_test['exact_match'] - frozen_test['exact_match'], 3)}},\n"
                 "    'by_field': {{field: {{'n': frozen_fields[field]['n'], 'frozen': frozen_fields[field]['anls'], 'adapted': adapted_fields[field]['anls']}} for field in frozen_fields}},\n"
                 "}}\n"
+                "delta_anls = adapted_test['anls'] - frozen_test['anls']\n"
+                "adaptation_verdict = 'improved' if delta_anls > 0 else ('no gain' if delta_anls == 0 else 'worse')\n"
+                "comparison['verdicts'] = {{'frozen_vs_last_number_baseline': frozen_verdict, 'adapted_vs_frozen_test_anls': adaptation_verdict}}\n"
                 "for metric, row in comparison.items():\n"
                 "    print({{metric: row}})\n"
                 "for record in test_records[:3]:\n"
@@ -426,7 +528,7 @@ TEMPLATE = {
                 "}}\n"
                 "with open('outputs/{stem}_evaluation_report.json', 'w', encoding='utf-8') as f:\n"
                 "    json.dump(evaluation_report_payload, f, indent=2, ensure_ascii=False)\n"
-                "assert adapted_test['anls'] > frozen_test['anls']\n"
+                "print({{'verdicts': comparison['verdicts']}})\n"
                 "print({{'report': 'outputs/{stem}_evaluation_report.json'}})"
             ),
         },
@@ -446,7 +548,13 @@ TEMPLATE = {
                 "the base snapshot, checks the artifact manifest, its digest and its exact tensor set **before** deserialising, "
                 "refuses any tensor that is not an adaptable encoder-block or span-head tensor, and overlays the tensors onto "
                 "a freshly loaded base — a new object from files, not the in-memory model (VER2). The cell asserts identical "
-                "answers on eight test receipts (VER4)."
+                "answers on eight test receipts (VER4).\n\n"
+                "<details><summary>Check your reasoning</summary>\n\n"
+                "Why reload from files instead of trusting the in-memory model? Because the artifact is what you ship: the "
+                "recorded run's reloaded adapter gave identical answers on 8 of 8 test receipts, which proves the saved "
+                "tensors and manifest are complete. A mismatch stops the notebook — it is a contract failure, not a quality "
+                "result.\n\n"
+                "</details>"
             ),
             "code": (
                 "import csv\n"
@@ -532,10 +640,41 @@ TEMPLATE = {
         "the shown machine-readable artifacts — without the repository being reachable. It does **not** establish benchmark "
         "superiority, document-understanding accuracy on any other domain or OCR, a usable rejection threshold, or production "
         "fitness.\n\n"
-        "**Optional experiments (they do not affect the default path):** set `TRAINABLE_ENCODER_LAYERS = 2` and compare the "
+        "## Change one thing (next experiments)\n\n"
+        "These do not affect the default path; re-run from Section 6 after any change (the cells restart from the frozen model). "
+        "Set `TRAINABLE_ENCODER_LAYERS = 2` and compare the "
         "artifact size and the test scores; raise `EPOCHS` and watch the validation ANLS pick the epoch; ask the adapted model "
         "`What is the delivery address?` on the invoice and read the score of a span the page cannot support; or bring your "
         "own annotated pages through BYOD and read the two baselines before the adapted number.\n\n"
+        "## Troubleshooting\n\n"
+        "Section 1 stops with `This notebook needs a Linux x86_64 runtime`: use Google Colab, Kaggle or a Linux Jupyter host. "
+        "`The pinned uv wheel failed its size/SHA-256 check`: run Section 1 again; if it repeats, the download is being "
+        "altered. `The isolated environment's Python process exited`: the worker crashed, usually out of memory — restart the "
+        "session and choose **Run all**. A size or SHA-256 `ValueError` in Section 3 or from `fetch_corpus` in Section 4: a "
+        "download is incomplete or altered — delete the file under `weights/` and re-run that section. With `USE_BYOD = True`: "
+        "`BYOD_PATH … is not a file`, `expected exactly one uploaded … file` or `… no Colab upload dialog` — fix the path or "
+        "the upload; a `ValueError` naming your file and a record — fix that record (the Data contract in the Prerequisites "
+        "lists every rule) and re-run from Section 4. A verdict of `not above the last-number baseline` or `no gain` / `worse` "
+        "is a result to record, not an error. `reload parity` mismatch in Section 9: the artifact on disk is incomplete — "
+        "delete `outputs/{stem}_adapter` and re-run Section 9.\n\n"
+        "## Glossary\n\n"
+        "- **OCR words and boxes:** the page's words in reading order, each with its pixel rectangle `[x0, y0, x1, y1]`; LayoutLM reads these, not pixels.\n"
+        "- **Extractive (span) QA:** the answer is a contiguous run of the page's words, chosen by a start and an end position.\n"
+        "- **Score:** the product of the start and end probabilities of the chosen span within its window — a ranking signal, not a calibrated confidence.\n"
+        "- **Window / fit check:** the model reads at most 512 tokens at once; records that need more are answered window by window and are not trained on.\n"
+        "- **ANLS:** average normalised Levenshtein similarity between answer and gold, set to 0 below 0.5; **exact match** is the strict version.\n"
+        "- **Baseline:** a trivial non-neural answerer (last number on the page, keyword lookup) that a model must beat to be worth its cost.\n"
+        "- **Page-disjoint split:** every question on a page stays in one split, so the test set never asks about a training page.\n"
+        "- **Bounded fine-tuning:** training only the last encoder blocks and the span head; the rest stays frozen.\n"
+        "- **Verdict:** a recorded outcome (`improved`, `no gain`, `worse`) instead of an assertion, so a negative result still exports.\n"
+        "- **Adapter artifact:** the trained tensors as safetensors plus a manifest naming the base model, its digest and every tensor.\n"
+        "- **Isolated environment:** the separate hash-locked Python environment built in Section 1; every later cell runs there.\n\n"
+        "## Conclusion (your notes)\n\n"
+        "1. In two sentences: what did the fine-tuning change, measured against which baselines, on which split?\n"
+        "2. Which field would you not trust after adaptation, and why?\n"
+        "3. Which of your predictions were wrong, and what did the output show instead?\n"
+        "4. What would you need before using this reader on your own documents and your own OCR?\n\n"
+        "**Your notes:**\n\n"
         "## References\n\n"
         "- Repository README: https://github.com/kurtvalcorza/layoutlm-document-qa-pipeline/blob/main/README.md\n"
         "- Repository model card: https://github.com/kurtvalcorza/layoutlm-document-qa-pipeline/blob/main/MODEL_CARD.md\n"
