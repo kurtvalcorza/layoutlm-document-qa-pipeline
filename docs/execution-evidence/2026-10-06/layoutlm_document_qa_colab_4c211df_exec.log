@@ -1,0 +1,93 @@
+[colab] Parsing notebook '/home/kurt/colab-runs/layoutlm-document-qa-pipeline-4c211df-7b8f10/layoutlm_document_qa_colab_4c211df_colab-cli-t4.ipynb'...
+[colab] Executing cell 1/14 - Infrastructure: install the locked runtime into an isolated environment...
+{'isolated_environment': '/content/dimer_isolated_env', 'isolated_python': '3.12.12', 'kernel_python': '3.13.15', 'locked_packages': 48, 'setup_seconds': 58}
+[colab] Executing cell 2/14 - Infrastructure: route the remaining cells to the isolated environment...
+Every later code cell now runs in /content/dimer_isolated_env/bin/python (pid 2306).
+[colab] Executing cell 3/14 - Infrastructure: record the runtime...
+{'notebook_source': {'repository': 'layoutlm-document-qa-pipeline', 'repository_revision': 'd14e37221df024341c4d136aea23ac56bdedb68f', 'embedded_module': 'src/layoutlm_document_qa_pipeline/pipeline.py', 'embedded_modules': ['src/layoutlm_document_qa_pipeline/pipeline.py', 'src/layoutlm_document_qa_pipeline/metrics.py', 'src/layoutlm_document_qa_pipeline/samples.py'], 'module_sha256': '28edd4dc5c477d08ca1d009ea032be03f8e8a76453804afca103c433d1e3a7c4', 'generator': 'build_notebook.py/2.1', 'notebook_spec': '2.2'}, 'python': '3.12.12', 'torch': '2.14.0+cu130', 'transformers': '4.57.6', 'cuda': True}
+[colab] Executing cell 4/14 - Infrastructure: carried module `src/layoutlm_document_qa_pipeline/pipeline.py` (you may run it without reading it)...
+[colab] Executing cell 5/14 - Infrastructure: carried module `src/layoutlm_document_qa_pipeline/metrics.py` (you may run it without reading it)...
+[colab] Executing cell 6/14 - Infrastructure: carried module `src/layoutlm_document_qa_pipeline/samples.py` (you may run it without reading it)...
+[colab] Executing cell 7/14 - Infrastructure: pin, stage and verify the model (you may run it without reading it)...
+{'model_id': 'impira/layoutlm-document-qa', 'revision': 'beed3c4d02d86017ebca5bd0fdf210046b907aa6', 'license': 'mit', 'files': 8, 'total_bytes': 513814827}
+{'weights_dir': '/content/weights/layoutlm-document-qa', 'fetched': ['README.md', 'config.json', 'merges.txt', 'model.safetensors', 'special_tokens_map.json', 'tokenizer.json', 'tokenizer_config.json', 'vocab.json']}
+{'verified_files': 8, 'revision': 'beed3c4d02d86017ebca5bd0fdf210046b907aa6'}
+{'device': 'cuda:0', 'source': 'local-snapshot'}
+[colab] Executing cell 8/14 - layoutlm_document_qa-17...
+{'data_source': 'CORD-v2 Hugging Face Hub dataset revision 7f0115a4 (2022-07-19) (CC BY 4.0 (Park et al. 2019; NAVER Clova; huggingface.co/datasets/naver-clova-ix/cord-v2))', 'raw_rows': {'test': 100, 'validation': 100}, 'splits': {'train': 595, 'validation': 152, 'test': 229}, 'pages': {'train': 119, 'validation': 30, 'test': 50}, 'split_unit': 'page (receipt); no shop or vendor field', 'column_sha256': {'test': 'b499e58aa298e524...', 'validation': 'adf8303ec0295af1...'}}
+{'byod_minimum_records': 12, 'split_minimums': {'train': 8, 'validation': 2, 'test': 2}}
+{'train': {'n': 595, 'unique_pages': 119, 'words_per_page': {'min': 9, 'max': 60}, 'answer_words': {'min': 1, 'max': 7}, 'digest': 'd063f10092c47e39...'}}
+{'validation': {'n': 152, 'unique_pages': 30, 'words_per_page': {'min': 9, 'max': 70}, 'answer_words': {'min': 1, 'max': 5}, 'digest': '07e37d514b1e81ea...'}}
+{'test': {'n': 229, 'unique_pages': 50, 'words_per_page': {'min': 7, 'max': 66}, 'answer_words': {'min': 1, 'max': 9}, 'digest': '496e39d8142f6ac1...'}}
+{'fields_test': {'total.total_price': 46, 'sub_total.subtotal_price': 27, 'sub_total.tax_price': 17, 'total.cashprice': 35, 'menu.nm': 50, 'total.changeprice': 29, 'total.menuqty_cnt': 12, 'total.creditcardprice': 7, 'sub_total.discount_price': 4, 'sub_total.service_price': 2}}
+{'example': {'id': 'train-0000', 'page_id': 'test-066', 'question': 'What is the total amount?', 'answers': ['40,000'], 'span': [14, 14], 'words': 'PILLOW DURIA 36,364 PLASTIK 25 0 SUBTOTAL 36,364 PD1 10% 10.000Z AMOUNT 3,636 TOTAL 40,000 CASH 50,000 CHANGE ...'}}
+{'probe': 'duplicate id', 'rejected': "duplicate id 'same'"}
+{'probe': 'gold span outside the words', 'rejected': 'records[0]: answer span 14..19 is not inside the 19 words'}
+{'probe': 'box outside the page', 'rejected': 'records[0]: boxes[0] [0, 0, 865, 5] is not inside the 864x1296 page'}
+{'probe': 'too small', 'rejected': '3 records; 8..20000 are required'}
+[colab] Executing cell 9/14 - layoutlm_document_qa-19...
+{'fit_check': {'train': {'fitting': 595, 'dropped': []}, 'validation': {'fitting': 152, 'dropped': []}, 'test': {'fitting': 229, 'dropped': []}}}
+{'MIN_IMAGE_SIDE': 1, 'MAX_IMAGE_SIDE': 10000, 'MAX_WORDS': 2000, 'MAX_QUESTION_CHARS': 256, 'MAX_SEQ_LEN': 512, 'DOC_STRIDE': 128, 'MAX_ANSWER_TOKENS': 15, 'BOX_GRID': 1000, 'MIN_RECORDS': 8, 'MAX_RECORDS': 20000}
+{'page': 'synthetic_invoice_850x1100.png', 'size': (850, 1100), 'rgb_sha256': 'ee1796645be8a8f5...', 'n_words': 73, 'manifest_verdict': 'accepted', 'findings': 1}
+Q: What is the invoice number?
+   A: 'NW-2026-0417'  score 1.0000  words 12..12  windows 1
+Q: Who is the customer?
+   A: 'Blue Yonder Airlines'  score 1.0000  words 24..26  windows 1
+Q: What is the total due?
+   A: '$1,099.20'  score 0.9998  words 59..59  windows 1
+Q: What is the due date?
+   A: '11 April 2026'  score 1.0000  words 20..22  windows 1
+Q: How many cargo pallets were invoiced?
+   A: '40'  score 0.9994  words 38..38  windows 1
+{'checks': {'one_result_per_question': True, 'span_is_the_indexed_words': True, 'indices_inside_the_page': True, 'scores_in_unit_interval': True, 'one_window': True}, 'frozen_invoice': {'anls': 1.0, 'exact_match': 1.0}, 'verdict': 'sample-sanity'}
+[colab] Executing cell 10/14 - layoutlm_document_qa-21...
+{'last_number_baseline': {'anls': 0.406, 'exact_match': 0.253, 'n': 229}}
+{'keyword_lookup_baseline': {'anls': 0.635, 'exact_match': 0.594, 'n': 229}}
+{'frozen_model_test': {'anls': 0.843, 'exact_match': 0.782, 'n': 229, 'adapted': False, 'verdict': 'measured'}, 'seconds': 7.4}
+{'definitions': {'anls': 'mean over questions of the Average Normalised Levenshtein Similarity between the prediction and its best-matching accepted answer (lower-cased, punctuation removed, whitespace collapsed; a similarity below 0.5 scores 0); in 0..1', 'exact_match': 'fraction of questions whose normalised prediction equals a normalised accepted answer; in 0..1'}}
+{'frozen_by_field': {'menu.nm': {'n': 50, 'anls': 0.79, 'too_few_to_read': False}, 'sub_total.discount_price': {'n': 4, 'anls': 1.0, 'too_few_to_read': True}, 'sub_total.service_price': {'n': 2, 'anls': 1.0, 'too_few_to_read': True}, 'sub_total.subtotal_price': {'n': 27, 'anls': 0.98, 'too_few_to_read': False}, 'sub_total.tax_price': {'n': 17, 'anls': 0.92, 'too_few_to_read': False}, 'total.cashprice': {'n': 35, 'anls': 0.85, 'too_few_to_read': False}, 'total.changeprice': {'n': 29, 'anls': 0.87, 'too_few_to_read': False}, 'total.creditcardprice': {'n': 7, 'anls': 0.96, 'too_few_to_read': True}, 'total.menuqty_cnt': {'n': 12, 'anls': 0.17, 'too_few_to_read': False}, 'total.total_price': {'n': 46, 'anls': 0.91, 'too_few_to_read': False}}}
+{'frozen_beats_last_number': True, 'frozen_beats_keyword_lookup': True}
+[colab] Executing cell 11/14 - layoutlm_document_qa-23...
+{'epoch': 0, 'train_loss': None, 'val_anls': 0.8191, 'val_exact_match': 0.7368, 'note': 'frozen model'}
+{'epoch': 1, 'train_loss': 1.3726, 'val_anls': 0.8594, 'val_exact_match': 0.8158}
+{'epoch': 2, 'train_loss': 0.7737, 'val_anls': 0.9023, 'val_exact_match': 0.8618}
+{'epoch': 3, 'train_loss': 0.591, 'val_anls': 0.9237, 'val_exact_match': 0.9013}
+{'epoch': 4, 'train_loss': 0.5003, 'val_anls': 0.9337, 'val_exact_match': 0.9276}
+{'epoch': 5, 'train_loss': 0.4376, 'val_anls': 0.9523, 'val_exact_match': 0.9408}
+{'epoch': 6, 'train_loss': 0.3775, 'val_anls': 0.9518, 'val_exact_match': 0.9474}
+{'trainable_encoder_layers': 4, 'trainable_parameters': 28353026, 'total_parameters': 127792898, 'learning_rate': 3e-05, 'seed': 0, 'best_epoch': 5, 'selection': 'highest validation ANLS', 'selection_split': 'validation', 'seconds': 78.9}
+[colab] Executing cell 12/14 - layoutlm_document_qa-25...
+{'anls': {'last_number': 0.406, 'keyword_lookup': 0.635, 'frozen': 0.843, 'adapted': 0.94}}
+{'exact_match': {'last_number': 0.253, 'keyword_lookup': 0.594, 'frozen': 0.782, 'adapted': 0.921}}
+{'delta_vs_frozen': {'anls': 0.097, 'exact_match': 0.14}}
+{'by_field': {'menu.nm': {'n': 50, 'frozen': 0.79, 'adapted': 0.92, 'too_few_to_read': False}, 'sub_total.discount_price': {'n': 4, 'frozen': 1.0, 'adapted': 0.75, 'too_few_to_read': True}, 'sub_total.service_price': {'n': 2, 'frozen': 1.0, 'adapted': 1.0, 'too_few_to_read': True}, 'sub_total.subtotal_price': {'n': 27, 'frozen': 0.98, 'adapted': 1.0, 'too_few_to_read': False}, 'sub_total.tax_price': {'n': 17, 'frozen': 0.92, 'adapted': 0.94, 'too_few_to_read': False}, 'total.cashprice': {'n': 35, 'frozen': 0.85, 'adapted': 0.9, 'too_few_to_read': False}, 'total.changeprice': {'n': 29, 'frozen': 0.87, 'adapted': 1.0, 'too_few_to_read': False}, 'total.creditcardprice': {'n': 7, 'frozen': 0.96, 'adapted': 1.0, 'too_few_to_read': True}, 'total.menuqty_cnt': {'n': 12, 'frozen': 0.17, 'adapted': 0.83, 'too_few_to_read': False}, 'total.total_price': {'n': 46, 'frozen': 0.91, 'adapted': 0.95, 'too_few_to_read': False}}}
+{'fields_that_lost_score': {'sub_total.discount_price': {'n': 4, 'frozen': 1.0, 'adapted': 0.75, 'too_few_to_read': True}}}
+{'questions_where_the_models_disagree': 44, 'of': 229}
+{'field': 'total.cashprice', 'question': 'How much cash was paid?', 'frozen': '20,000', 'adapted': '100,000', 'gold': ['100,000']}
+{'field': 'total.menuqty_cnt', 'question': 'How many items were bought?', 'frozen': '9.500,00', 'adapted': '1', 'gold': ['1']}
+{'field': 'menu.nm', 'question': 'What is the name of the first item?', 'frozen': 'CHEESE', 'adapted': '2005- CHEESE', 'gold': ['CHEESE JOHN']}
+{'field': 'menu.nm', 'question': 'What is the name of the first item?', 'frozen': 'BAKSO BNGKS 15.000', 'adapted': 'BAKSO BNGKS', 'gold': ['BAKSO BNGKS']}
+{'field': 'total.creditcardprice', 'question': 'How much was paid by card?', 'frozen': 'Rp.118.000', 'adapted': '118.000', 'gold': ['118.000']}
+{'field': 'total.menuqty_cnt', 'question': 'How many items were bought?', 'frozen': '9.000', 'adapted': '6.00xITEMS', 'gold': ['6.00xITEMS']}
+{'frozen_beats_last_number': True, 'frozen_beats_keyword_lookup': True, 'adapted_beats_frozen': True, 'adapted_beats_both_baselines': True, 'fields_that_lost_score': ['sub_total.discount_price'], 'best_epoch': 5}
+Reading: The adapted ANLS is above the frozen ANLS (delta +0.097), but not every field gained: sub_total.discount_price lost score (check its n before reading anything into it).
+run   data blocks epochs       lr best  frozen    ANLS      EM
+  1 sample      4      6    3e-05    5   0.843   0.940   0.921
+{'report': 'outputs/layoutlm_document_qa_evaluation_report.json'}
+[colab] Executing cell 13/14 - layoutlm_document_qa-27...
+{'question': 'What is the invoice number?', 'frozen': 'NW-2026-0417', 'adapted': 'NW-2026-0417', 'gold': ['NW-2026-0417']}
+{'question': 'Who is the customer?', 'frozen': 'Blue Yonder Airlines', 'adapted': 'Blue Yonder Airlines', 'gold': ['Blue Yonder Airlines']}
+{'question': 'What is the total due?', 'frozen': '$1,099.20', 'adapted': '$1,099.20', 'gold': ['$1,099.20', '1,099.20']}
+{'question': 'What is the due date?', 'frozen': '11 April 2026', 'adapted': '11 April 2026', 'gold': ['11 April 2026']}
+{'question': 'How many cargo pallets were invoiced?', 'frozen': '40', 'adapted': '40', 'gold': ['40']}
+{'invoice_after_adaptation': {'anls': 1.0, 'exact_match': 1.0}, 'verdict': 'sample-sanity', 'reason': '5 authored question(s) on one tutorial page whose words and boxes you rendered y...'}
+{'artifact': 'outputs/layoutlm_document_qa_adapter', 'format': 'org.valcorza.layoutlm-document-qa.adapter.v1', 'tensors': 66, 'bytes': 113419976, 'sha256': 'cf4ffc7966de0fbc...'}
+{'reload_parity': {'identical_answers': 8, 'of': 8}, 'reloaded_best_epoch': 5}
+['layoutlm_document_qa_adapter', 'layoutlm_document_qa_annotated.png', 'layoutlm_document_qa_answers.csv', 'layoutlm_document_qa_evaluation_report.json', 'layoutlm_document_qa_input_manifest.json', 'layoutlm_document_qa_result.json', 'layoutlm_document_qa_train.jsonl']
+[colab] Executing cell 14/14 - layoutlm_document_qa-29...
+{'question': 'What is the invoice number?', 'answerable': True, 'frozen': 'NW-2026-0417', 'frozen_score': 1.0, 'adapted': 'NW-2026-0417', 'adapted_score': 0.9991}
+{'question': 'What is the delivery address?', 'answerable': False, 'frozen': '14 Harbour Road,', 'frozen_score': 0.2774, 'adapted': '$740.00', 'adapted_score': 0.0651}
+{'question': 'What is the VAT registration number?', 'answerable': False, 'frozen': '$183.20', 'frozen_score': 0.9997, 'adapted': '$183.20', 'adapted_score': 0.998}
+{'question': 'Who signed the invoice?', 'answerable': False, 'frozen': 'Northwind Traders Ltd.', 'frozen_score': 0.9892, 'adapted': 'Northwind Traders Ltd.', 'adapted_score': 0.5801}
+{'empty_answers': 0, 'note': 'the model has no abstention; a span and a score are returned for every question'}
+[colab] Saving notebook with outputs to '/home/kurt/colab-runs/layoutlm-document-qa-pipeline-4c211df-7b8f10/layoutlm_document_qa_colab_4c211df_colab-cli-t4_output.ipynb'...
