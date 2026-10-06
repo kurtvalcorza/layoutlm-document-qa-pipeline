@@ -683,7 +683,12 @@ class LayoutLMDocumentQAPipeline:
         stay frozen). Start/end cross-entropy on the gold word span's first and last tokens, AdamW at a fixed
         learning rate with gradient clipping at 1.0, dynamic padding, no scheduler; every training record must
         fit one window (`check_fit`). Epoch 0 records the frozen model's validation ANLS; the epoch with the
-        highest validation ANLS is kept."""
+        highest validation ANLS is kept.
+
+        An already adapted pipeline (or one with a loaded artifact) is refused: training would continue from
+        the adapted weights, record them as the "frozen model" at epoch 0, and export an artifact that leaves
+        out any block the first adaptation changed but this one does not train. Build a fresh pipeline with
+        `from_pretrained()` first."""
         from .samples import validate_dataset
 
         if isinstance(epochs, bool) or not isinstance(epochs, int) or not 1 <= epochs <= 20:
@@ -692,6 +697,11 @@ class LayoutLMDocumentQAPipeline:
             raise ValueError("lr must be in (0, 1e-3]")
         if isinstance(batch_size, bool) or not isinstance(batch_size, int) or not 1 <= batch_size <= 64:
             raise ValueError("batch_size must be an int in 1..64")
+        if self.adapter is not None:
+            raise ValueError(
+                "this pipeline is already adapted; adapt() starts from the pretrained base, so build a fresh "
+                "pipeline with from_pretrained() first"
+            )
         names = self._trainable_names(trainable_encoder_layers)
         train_checked = validate_dataset(train)["records"]
         val_checked = (

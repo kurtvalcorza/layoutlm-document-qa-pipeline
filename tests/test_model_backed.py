@@ -65,8 +65,10 @@ def _answers(pipe, records):
     ]
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def pipe():
+    # Function-scoped: adapt() refuses an already adapted pipeline (review LDQ-M2),
+    # so each test gets a fresh base.
     return LayoutLMDocumentQAPipeline.from_pretrained(device="cpu")
 
 
