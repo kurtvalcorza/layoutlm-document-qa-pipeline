@@ -241,12 +241,13 @@ def test_activity_cell_is_off_by_default_and_refuses_unknown_change():
     source = _set_param(
         _set_param(_src("dqa-activity"), "RUN_LAYOUT_ACTIVITY", True), "ACTIVITY_LAYOUT_CHANGE", "rotate"
     )
-    with pytest.raises(ValueError, match="ACTIVITY_LAYOUT_CHANGE"):
-        _run(source, dict(ns))
+    # DQA2-m3: an out-of-range control prints one 'Refused:' line and runs nothing (no traceback).
+    out = _run(source, dict(ns))
+    assert out.count("Refused:") == 1 and "ACTIVITY_LAYOUT_CHANGE" in out
     on = _set_param(_src("dqa-activity"), "RUN_LAYOUT_ACTIVITY", True)
     source = _set_param(on, "ACTIVITY_MAX_RECORDS", 4)
-    with pytest.raises(ValueError, match=r"1\.\.3"):
-        _run(source, dict(ns))
+    out = _run(source, dict(ns))
+    assert out.count("Refused:") == 1 and "1..3" in out
 
 
 def test_activity_cell_runs_the_activity_stage_with_its_controls():
@@ -287,11 +288,15 @@ def test_a_receipt_is_shown_before_any_model_result(dqa, tmp_path, shown):
         "image": Image.new("RGB", (900, 1200), "white"),
         "words": rec["words"],
         "boxes": rec["boxes"],
+        "source_split": "validation",
+        "source_row": 37,
     }
     path = tmp_path / "preview.png"
     preview, out = _call(dqa.draw_preview, [rec], {rec["page_id"]: page}, path)
     assert preview.width == 700 and Image.open(path).width == 700
     assert rec["question"] in out
+    # DQA2-m4: the page id is explained as the CORD source shard and row, not this notebook's split.
+    assert "(row 37 of CORD's validation shard; in this notebook's test split)" in out
     calls = []
     ns = {"run_stage": lambda *a: calls.append(a), "state": lambda name: {"path": str(path)}}
     _run("from IPython.display import Image as ShowImage, display\n" + _src("dqa-preview"), ns)
@@ -573,7 +578,7 @@ def test_byod_section_states_limits_layouts_and_data_locality():
 # --------------------------------------------------------------------------------------- DQA-m3 / m4 / m5
 def test_runtime_orientation_and_cpu_warning(dqa):
     opening = _src("guided-00")
-    assert "2.1 GB" in opening and "152 seconds" in opening and "T4" in opening
+    assert "2.1 GB" in opening and "143 seconds" in opening and "T4" in opening
     assert "No GPU detected" in _src("7984f79d")
     assert "No GPU detected" in inspect.getsource(dqa.stage_environment)
 
@@ -605,5 +610,6 @@ def test_the_review_edit_is_recorded_in_the_notebook_metadata():
     revisions = _notebook()["metadata"]["dimer"]["review_revisions"]
     entry = next(r for r in revisions if r["date"] == "2026-10-02")
     assert entry["reviewed_revision"].startswith("07e4c08")
-    assert entry["hosted_execution"] == "pending"
+    # DQA2-m6: the stale "pending" now names the hosted run that covers these fixes.
+    assert entry["hosted_execution"].startswith("covered by the 2026-10-03 Colab CLI Tesla T4 run")
     assert "clean_runtime_evidence" not in _notebook()["metadata"]["dimer"]

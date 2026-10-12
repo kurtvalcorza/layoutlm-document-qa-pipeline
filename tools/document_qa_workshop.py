@@ -158,16 +158,23 @@ BYOD_LIMITS={"records":(1,500),"pages":(1,100),"words":(1,2000),"question_chars"
              "zip_files":1000,"zip_bytes":2_000_000_000}
 
 
+class InputRefused(ValueError):
+    """A notebook control or a BYOD input breaks a documented rule (not a defect of this stage file).
+
+    main() prints the reason once as a 'Refused:' line and exits with REFUSAL_EXIT; every other
+    exception is a genuine failure and keeps its traceback."""
+
+
 def validate_controls():
     """The section 3 control checks, repeated here so a stage never runs on an out-of-range setting."""
     if isinstance(MAX_NEW_TOKENS, bool) or not isinstance(MAX_NEW_TOKENS, int) or not 1 <= MAX_NEW_TOKENS <= 128:
-        raise ValueError("MAX_NEW_TOKENS must be in 1..128")
+        raise InputRefused("MAX_NEW_TOKENS must be in 1..128")
     if not 1 <= PARAPHRASE_MAX_RECORDS <= 20:
-        raise ValueError("PARAPHRASE_MAX_RECORDS must be in 1..20")
+        raise InputRefused("PARAPHRASE_MAX_RECORDS must be in 1..20")
     if not 1 <= UNANSWERABLE_PAGES <= 10:
-        raise ValueError("UNANSWERABLE_PAGES must be in 1..10")
+        raise InputRefused("UNANSWERABLE_PAGES must be in 1..10")
     if isinstance(ROBUSTNESS_MAX_RECORDS, bool) or not isinstance(ROBUSTNESS_MAX_RECORDS, int) or not 1 <= ROBUSTNESS_MAX_RECORDS <= 50:
-        raise ValueError("ROBUSTNESS_MAX_RECORDS must be an integer in 1..50; correct it in this cell and run again from here")
+        raise InputRefused("ROBUSTNESS_MAX_RECORDS must be an integer in 1..50; correct it in this cell and run again from here")
 
 
 def configure(config):
@@ -972,9 +979,10 @@ def draw_preview(test_records,test_pages,path):
     for box in preview_page["boxes"]: preview_draw.rectangle(box,outline=(150,150,150),width=1)
     if preview.width>700: preview=preview.resize((700,max(1,int(preview.height*700/preview.width))))
     preview.save(path)
-    print(f"Page {preview_page['id']}: {len(preview_page['words'])} OCR words with one box each")
+    print(f"Page {preview_page['id']} (row {preview_page['source_row']} of CORD's {preview_page['source_split']} "
+          f"shard; in this notebook's test split): {len(preview_page['words'])} annotated words with one box each")
     print("Question:",preview_record["question"])
-    print("First 25 OCR words:",preview_page["words"][:25])
+    print("First 25 annotated words (LayoutLM's OCR input):",preview_page["words"][:25])
     return preview
 
 
@@ -1078,7 +1086,7 @@ def export_all(out_dir):
 def byod_root(path_text):
     """The dataset folder: BYOD_PATH itself, or a .zip extracted with every member kept inside the target folder."""
     text=str(path_text).strip()
-    if not text: raise ValueError("BYOD_PATH is empty: set it in section 3 to your dataset folder or .zip (see section 30)")
+    if not text: raise InputRefused("BYOD_PATH is empty: set it in section 3 to your dataset folder or .zip (see section 30)")
     path=Path(text)
     if path.is_file() and path.suffix.lower()==".zip":
         target=Path(OUTPUT_DIR).parent/"byod_input"
@@ -1087,19 +1095,19 @@ def byod_root(path_text):
         with zipfile.ZipFile(path) as archive:
             members=[m for m in archive.infolist() if not m.is_dir()]
             if len(members)>BYOD_LIMITS["zip_files"]:
-                raise ValueError(f"{path.name}: {len(members)} files; the ZIP may hold at most {BYOD_LIMITS['zip_files']}")
+                raise InputRefused(f"{path.name}: {len(members)} files; the ZIP may hold at most {BYOD_LIMITS['zip_files']}")
             if sum(m.file_size for m in members)>BYOD_LIMITS["zip_bytes"]:
-                raise ValueError(f"{path.name}: more than 2 GB uncompressed; split the dataset")
+                raise InputRefused(f"{path.name}: more than 2 GB uncompressed; split the dataset")
             root=target.resolve()
             for m in members:
                 if root not in (target/m.filename).resolve().parents:
-                    raise ValueError(f"{path.name}: member {m.filename!r} would extract outside the dataset folder; "
+                    raise InputRefused(f"{path.name}: member {m.filename!r} would extract outside the dataset folder; "
                                      "rebuild the ZIP with relative paths")
             archive.extractall(target)
         inner=[p for p in target.iterdir() if p.is_dir() and (p/"records.jsonl").is_file()]
         path=target if (target/"records.jsonl").is_file() or len(inner)!=1 else inner[0]
     if not (path/"records.jsonl").is_file() or not (path/"pages").is_dir():
-        raise FileNotFoundError(f"{path}: expected records.jsonl and a pages/ folder (section 30 shows the layout)")
+        raise InputRefused(f"{path}: expected records.jsonl and a pages/ folder (section 30 shows the layout)")
     return path
 
 
@@ -1107,70 +1115,73 @@ def validate_byod(root):
     """Check every record against the section 30 contract before any model loads; refusals name the record id."""
     lines=[line for line in (root/"records.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
     lo,hi=BYOD_LIMITS["records"]
-    if not lo<=len(lines)<=hi: raise ValueError(f"records.jsonl has {len(lines)} records; BYOD accepts {lo}..{hi}")
+    if not lo<=len(lines)<=hi: raise InputRefused(f"records.jsonl has {len(lines)} records; BYOD accepts {lo}..{hi}")
     records=[]; seen=set(); pages={}
     for n,line in enumerate(lines,1):
         try: r=json.loads(line)
-        except json.JSONDecodeError as exc: raise ValueError(f"records.jsonl line {n}: not valid JSON ({exc.msg})") from None
-        if not isinstance(r,dict): raise ValueError(f"records.jsonl line {n}: each line must be one JSON object")
+        except json.JSONDecodeError as exc: raise InputRefused(f"records.jsonl line {n}: not valid JSON ({exc.msg})") from None
+        if not isinstance(r,dict): raise InputRefused(f"records.jsonl line {n}: each line must be one JSON object")
         rid=str(r.get("id","")).strip() or f"line {n}"
         where=f"BYOD record {rid!r} (records.jsonl line {n})"
         missing=sorted({"id","page_id","file","question","words","boxes"}-set(r))
-        if missing: raise ValueError(f"{where}: missing required keys {missing}")
-        if rid in seen: raise ValueError(f"{where}: duplicate id; every record needs a unique id")
+        if missing: raise InputRefused(f"{where}: missing required keys {missing}")
+        if rid in seen: raise InputRefused(f"{where}: duplicate id; every record needs a unique id")
         seen.add(rid)
         question=" ".join(str(r["question"]).split())
         if not question or len(question)>BYOD_LIMITS["question_chars"]:
-            raise ValueError(f"{where}: question must be 1..{BYOD_LIMITS['question_chars']} characters")
+            raise InputRefused(f"{where}: question must be 1..{BYOD_LIMITS['question_chars']} characters")
         file=Path(str(r["file"])).name
         if file not in pages:
             image_path=root/"pages"/file
             if not image_path.is_file():
-                raise ValueError(f"{where}: page file pages/{file} not found; check 'file' and the pages/ folder")
+                raise InputRefused(f"{where}: page file pages/{file} not found; check 'file' and the pages/ folder")
             try:
                 with Image.open(image_path) as im:
                     im.load(); image=im.convert("RGB")
             except Exception as exc:
-                raise ValueError(f"{where}: pages/{file} is not a readable image ({type(exc).__name__})") from None
+                raise InputRefused(f"{where}: pages/{file} is not a readable image ({type(exc).__name__})") from None
             slo,shi=BYOD_LIMITS["image_side"]
             if min(image.size)<slo or max(image.size)>shi:
-                raise ValueError(f"{where}: pages/{file} is {image.width}x{image.height} px; each side must be "
+                raise InputRefused(f"{where}: pages/{file} is {image.width}x{image.height} px; each side must be "
                                  f"{slo}..{shi} px (resize the page and scale its boxes)")
             pages[file]=image
         image=pages[file]
         words,boxes=r["words"],r["boxes"]
         wlo,whi=BYOD_LIMITS["words"]
         if not isinstance(words,list) or not wlo<=len(words)<=whi:
-            raise ValueError(f"{where}: 'words' must be a list of {wlo}..{whi} OCR words")
+            raise InputRefused(f"{where}: 'words' must be a list of {wlo}..{whi} OCR words")
         if any(not isinstance(w,str) or not w.strip() for w in words):
-            raise ValueError(f"{where}: every OCR word must be a non-empty string; drop empty words and their boxes")
+            raise InputRefused(f"{where}: every OCR word must be a non-empty string; drop empty words and their boxes")
         if not isinstance(boxes,list) or len(boxes)!=len(words):
-            raise ValueError(f"{where}: {len(words)} words need exactly {len(words)} boxes, one per word")
+            raise InputRefused(f"{where}: {len(words)} words need exactly {len(words)} boxes, one per word")
         for k,box in enumerate(boxes):
             if not (isinstance(box,(list,tuple)) and len(box)==4 and all(
                     isinstance(v,(int,float)) and not isinstance(v,bool) and math.isfinite(v) for v in box)):
-                raise ValueError(f"{where}: box {k} must be four numbers [x0, y0, x1, y1] in pixels")
+                raise InputRefused(f"{where}: box {k} must be four numbers [x0, y0, x1, y1] in pixels")
             x0,y0,x1,y1=[float(v) for v in box]
             if not (0<=x0<=x1<=image.width and 0<=y0<=y1<=image.height):
-                raise ValueError(f"{where}: box {k} {list(box)} lies outside the {image.width}x{image.height} page pages/{file}")
+                raise InputRefused(f"{where}: box {k} {list(box)} lies outside the {image.width}x{image.height} page pages/{file}")
         answers=r.get("answers")
         if answers is not None and (not isinstance(answers,list) or not answers
                                     or not all(isinstance(a,str) and a.strip() for a in answers)):
-            raise ValueError(f"{where}: 'answers' must be a non-empty list of strings, or omitted")
+            raise InputRefused(f"{where}: 'answers' must be a non-empty list of strings, or omitted")
         records.append({**r,"id":rid,"question":question,"file":file,"image":image,
                         "image_size":[image.width,image.height],"answers":answers})
     plo,phi=BYOD_LIMITS["pages"]
-    if not plo<=len(pages)<=phi: raise ValueError(f"the dataset uses {len(pages)} page images; BYOD accepts {plo}..{phi}")
+    if not plo<=len(pages)<=phi: raise InputRefused(f"the dataset uses {len(pages)} page images; BYOD accepts {plo}..{phi}")
     labelled=[r["answers"] is not None for r in records]
     if any(labelled) and not all(labelled):
         without=[r["id"] for r in records if r["answers"] is None][:5]
-        raise ValueError(f"{sum(labelled)} of {len(records)} records have 'answers' and the rest do not "
+        raise InputRefused(f"{sum(labelled)} of {len(records)} records have 'answers' and the rest do not "
                          f"(e.g. {without}); give answers on every record, or remove them from every record")
     return records,all(labelled)
 
 
 def run_byod():
     """The former section 30 cell body: validate everything, then LayoutLM, then Pix2Struct, then exports."""
+    # Clear any earlier BYOD result first, so a refused input leaves no stale predictions or metrics.
+    previous=Path(OUTPUT_DIR)/"byod"
+    if previous.exists(): shutil.rmtree(previous)
     byod_dir=byod_root(BYOD_PATH)
     byod_records,byod_labelled=validate_byod(byod_dir)
     byod_pages=len({r["file"] for r in byod_records})
@@ -1240,9 +1251,9 @@ def changed_boxes(record,change):
 def run_activity(test_records,layout_rows,change,max_records):
     """The former activity cell body: reload LayoutLM, change only the boxes, write activity/layout_<change>.csv."""
     if change not in ACTIVITY_CHANGES:
-        raise ValueError("ACTIVITY_LAYOUT_CHANGE must be 'zero', 'shuffle' or 'coarse'")
+        raise InputRefused("ACTIVITY_LAYOUT_CHANGE must be 'zero', 'shuffle' or 'coarse'")
     if isinstance(max_records,bool) or not isinstance(max_records,int) or not 1<=max_records<=len(test_records):
-        raise ValueError(f"ACTIVITY_MAX_RECORDS must be an integer in 1..{len(test_records)}")
+        raise InputRefused(f"ACTIVITY_MAX_RECORDS must be an integer in 1..{len(test_records)}")
     activity_records=sorted(test_records,key=lambda r:r["id"])[:max_records]
     canonical_by_id={x["record_id"]:x for x in layout_rows}
     load_layoutlm()
@@ -1583,7 +1594,9 @@ def stage_activity(args):
                  args.change,args.max_records)
 
 
-REFUSAL_EXIT = 2
+# Exit code of a refused input (not 2, which argparse uses for usage errors). The notebook's run_stage()
+# stops quietly on it, because the stage has already printed the reason once.
+REFUSAL_EXIT = 65
 
 
 def main(argv=None):
@@ -1594,16 +1607,14 @@ def main(argv=None):
     parser.add_argument("--max-records", type=int, default=60)
     args = parser.parse_args(argv)
     config = json.loads(Path(args.config).read_text(encoding="utf-8"))
-    refusal = Path(config["work_dir"]) / "state" / "refusal.txt"
-    refusal.unlink(missing_ok=True)
     try:
         configure(config)
         STAGES[args.stage](args)
-    except (ValueError, FileNotFoundError) as exc:
-        # An input refusal (BYOD contract, activity controls): the notebook re-raises it as a ValueError.
-        refusal.parent.mkdir(parents=True, exist_ok=True)
-        refusal.write_text(str(exc), encoding="utf-8")
-        print("REFUSED:", exc, flush=True)
+    except InputRefused as exc:
+        # A documented input rule was broken (BYOD contract, notebook or activity controls): say so once.
+        # Any other exception is a genuine failure and keeps its traceback.
+        reason = str(exc).rstrip(". ")
+        print(f"Refused: {reason}. Correct it, then run the cell again.", flush=True)
         return REFUSAL_EXIT
     return 0
 

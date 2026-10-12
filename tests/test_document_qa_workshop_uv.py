@@ -133,7 +133,8 @@ def test_carrier_cell_writes_files_that_hash_to_the_lock(tmp_path):
 def test_uv_revision_is_logged_in_the_notebook_metadata():
     revisions = _notebook()["metadata"]["dimer"]["review_revisions"]
     entry = next(r for r in revisions if r["date"] == "2026-10-03")
-    assert entry["change"] == "uv isolated environment" and entry["hosted_execution"] == "pending"
+    assert entry["change"] == "uv isolated environment"
+    assert entry["hosted_execution"].startswith("2026-10-03 Colab CLI Tesla T4")
 
 
 def test_docs_say_linux_x86_64_only():
@@ -239,10 +240,12 @@ def test_export_and_summary_stages_write_every_required_output(tmp_path):
     assert summary.returncode == 0 and re.search(r"^LayoutLM\s+\d\.\d{3}\s+\d\.\d{3}", summary.stdout, re.M)
 
 
-def test_a_refusal_exits_2_with_the_message_for_the_notebook(tmp_path):
+def test_a_refusal_exits_65_with_one_refused_line(tmp_path):
+    # DQA2-m3: the stage prints the reason once; the notebook's run_stage() stops quietly on exit 65.
     done = _stage(_config(tmp_path, use_byod=True, byod_path=""), "byod")
-    assert done.returncode == dqa.REFUSAL_EXIT
-    assert "BYOD_PATH is empty" in (tmp_path / "work" / "state" / "refusal.txt").read_text(encoding="utf-8")
+    assert done.returncode == dqa.REFUSAL_EXIT == 65
+    assert done.stdout.count("Refused:") == 1 and "BYOD_PATH is empty" in done.stdout
+    assert "Traceback" not in done.stdout + done.stderr
 
 
 def test_an_out_of_range_control_is_refused_by_the_stage(tmp_path):
