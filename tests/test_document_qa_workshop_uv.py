@@ -133,7 +133,8 @@ def test_carrier_cell_writes_files_that_hash_to_the_lock(tmp_path):
 def test_uv_revision_is_logged_in_the_notebook_metadata():
     revisions = _notebook()["metadata"]["dimer"]["review_revisions"]
     entry = next(r for r in revisions if r["date"] == "2026-10-03")
-    assert entry["change"] == "uv isolated environment" and entry["hosted_execution"] == "pending"
+    assert entry["change"] == "uv isolated environment"
+    assert entry["hosted_execution"].startswith("2026-10-03 Colab CLI Tesla T4")
 
 
 def test_docs_say_linux_x86_64_only():
@@ -227,9 +228,21 @@ def test_display_stages_run_from_state_without_models(tmp_path, stage):
         assert "LayoutLM" in done.stdout and "1.000" in done.stdout
 
 
+def _stamp(config):
+    """Save the stand-in results again through save_state(), which binds them to the current run identity."""
+    import importlib
+
+    module = importlib.import_module("document_qa_workshop")
+    module.configure(json.loads(Path(config).read_text(encoding="utf-8")))
+    for name in module.RUN_STATE_CONTROLS:
+        module.save_state(name, {k: v for k, v in module.load_state(name).items() if k != "run_identity"})
+    importlib.reload(module)
+
+
 def test_export_and_summary_stages_write_every_required_output(tmp_path):
     _standin_state(tmp_path / "work")
     config = _config(tmp_path)
+    _stamp(config)
     assert _stage(config, "export").returncode == 0
     for name in dqa.REQUIRED_OUTPUTS:
         assert (tmp_path / "out" / name).is_file(), name
@@ -239,12 +252,32 @@ def test_export_and_summary_stages_write_every_required_output(tmp_path):
     assert summary.returncode == 0 and re.search(r"^LayoutLM\s+\d\.\d{3}\s+\d\.\d{3}", summary.stdout, re.M)
 
 
-def test_a_refusal_exits_2_with_the_message_for_the_notebook(tmp_path):
+def test_a_refusal_exits_65_with_one_refused_line(tmp_path):
+    # DQA2-m3: the stage prints the reason once; the notebook's run_stage() stops quietly on exit 65.
     done = _stage(_config(tmp_path, use_byod=True, byod_path=""), "byod")
-    assert done.returncode == dqa.REFUSAL_EXIT
-    assert "BYOD_PATH is empty" in (tmp_path / "work" / "state" / "refusal.txt").read_text(encoding="utf-8")
+    assert done.returncode == dqa.REFUSAL_EXIT == 65
+    assert done.stdout.count("Refused:") == 1 and "BYOD_PATH is empty" in done.stdout
+    assert "Traceback" not in done.stdout + done.stderr
 
 
 def test_an_out_of_range_control_is_refused_by_the_stage(tmp_path):
     done = _stage(_config(tmp_path, robustness_max_records=0), "compare")
     assert done.returncode == dqa.REFUSAL_EXIT and "ROBUSTNESS_MAX_RECORDS" in done.stdout
+
+
+def test_export_refuses_results_from_a_different_setting(tmp_path):
+    # Peer review CX6: Pix2Struct rows saved under one MAX_NEW_TOKENS are not exported under another.
+    _standin_state(tmp_path / "work")
+    _stamp(_config(tmp_path))
+    done = _stage(_config(tmp_path, max_new_tokens=16), "export")
+    message = next(ln for ln in done.stderr.splitlines() if ln.startswith("RuntimeError: Saved results"))
+    assert done.returncode != 0 and "'pix2struct_eval.json'" in message and "section 17" in message
+    assert "'layoutlm_eval.json'" not in message
+    assert not (tmp_path / "out" / "predictions.csv").exists()
+    assert _stage(_config(tmp_path), "export").returncode == 0
+
+
+def test_export_refuses_results_without_a_run_identity(tmp_path):
+    _standin_state(tmp_path / "work")
+    done = _stage(_config(tmp_path), "export")
+    assert done.returncode != 0 and "Run all" in done.stderr
