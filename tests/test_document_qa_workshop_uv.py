@@ -228,9 +228,21 @@ def test_display_stages_run_from_state_without_models(tmp_path, stage):
         assert "LayoutLM" in done.stdout and "1.000" in done.stdout
 
 
+def _stamp(config):
+    """Save the stand-in results again through save_state(), which binds them to the current run identity."""
+    import importlib
+
+    module = importlib.import_module("document_qa_workshop")
+    module.configure(json.loads(Path(config).read_text(encoding="utf-8")))
+    for name in module.RUN_STATE_CONTROLS:
+        module.save_state(name, {k: v for k, v in module.load_state(name).items() if k != "run_identity"})
+    importlib.reload(module)
+
+
 def test_export_and_summary_stages_write_every_required_output(tmp_path):
     _standin_state(tmp_path / "work")
     config = _config(tmp_path)
+    _stamp(config)
     assert _stage(config, "export").returncode == 0
     for name in dqa.REQUIRED_OUTPUTS:
         assert (tmp_path / "out" / name).is_file(), name
@@ -251,3 +263,21 @@ def test_a_refusal_exits_65_with_one_refused_line(tmp_path):
 def test_an_out_of_range_control_is_refused_by_the_stage(tmp_path):
     done = _stage(_config(tmp_path, robustness_max_records=0), "compare")
     assert done.returncode == dqa.REFUSAL_EXIT and "ROBUSTNESS_MAX_RECORDS" in done.stdout
+
+
+def test_export_refuses_results_from_a_different_setting(tmp_path):
+    # Peer review CX6: Pix2Struct rows saved under one MAX_NEW_TOKENS are not exported under another.
+    _standin_state(tmp_path / "work")
+    _stamp(_config(tmp_path))
+    done = _stage(_config(tmp_path, max_new_tokens=16), "export")
+    message = next(ln for ln in done.stderr.splitlines() if ln.startswith("RuntimeError: Saved results"))
+    assert done.returncode != 0 and "'pix2struct_eval.json'" in message and "section 17" in message
+    assert "'layoutlm_eval.json'" not in message
+    assert not (tmp_path / "out" / "predictions.csv").exists()
+    assert _stage(_config(tmp_path), "export").returncode == 0
+
+
+def test_export_refuses_results_without_a_run_identity(tmp_path):
+    _standin_state(tmp_path / "work")
+    done = _stage(_config(tmp_path), "export")
+    assert done.returncode != 0 and "Run all" in done.stderr

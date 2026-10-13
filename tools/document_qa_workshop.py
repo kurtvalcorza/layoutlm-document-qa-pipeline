@@ -200,6 +200,7 @@ def state_path(name):
 
 
 def save_state(name,value):
+    if name in RUN_STATE_CONTROLS: value={**value,"run_identity":run_identity(name)}
     path=state_path(name); path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(value),encoding="utf-8")
 
@@ -209,6 +210,55 @@ def load_state(name):
     if not path.is_file():
         raise RuntimeError(f"{path} is missing: an earlier stage has not run in this session. Choose Run all.")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+# ---- Run identity (peer review CX6) -----------------------------------------------------------------------
+# Each model or baseline result is saved with the identity of the run that produced it: this stage file's
+# SHA-256, the test-set digest, both model revisions and the notebook controls that change that result. The
+# export refuses to combine results whose identity differs from the current run, so every exported file
+# describes one configuration. A single Run all always matches.
+RUN_STATE_CONTROLS={
+    "baselines.json":(),
+    "layoutlm_check.json":(),
+    "layoutlm_eval.json":(),
+    "layoutlm_no_layout.json":("run_modality_robustness","robustness_max_records"),
+    "layoutlm_probes.json":("run_paraphrase_experiment","paraphrase_max_records","run_unanswerable_probe","unanswerable_pages"),
+    "pix2struct_check.json":("max_new_tokens",),
+    "pix2struct_eval.json":("max_new_tokens",),
+    "pix2struct_degraded.json":("max_new_tokens","run_modality_robustness","robustness_max_records"),
+    "pix2struct_probes.json":("max_new_tokens","run_paraphrase_experiment","paraphrase_max_records",
+                              "run_unanswerable_probe","unanswerable_pages"),
+}
+RUN_STATE_CELLS={
+    "baselines.json":"section 10","layoutlm_check.json":"section 11","layoutlm_eval.json":"section 12",
+    "layoutlm_no_layout.json":"section 13","layoutlm_probes.json":"section 14","pix2struct_check.json":"section 16",
+    "pix2struct_eval.json":"section 17","pix2struct_degraded.json":"section 18","pix2struct_probes.json":"section 19",
+}
+
+
+def control_values():
+    return {"max_new_tokens":MAX_NEW_TOKENS,"run_paraphrase_experiment":RUN_PARAPHRASE_EXPERIMENT,
+            "paraphrase_max_records":PARAPHRASE_MAX_RECORDS,"run_unanswerable_probe":RUN_UNANSWERABLE_PROBE,
+            "unanswerable_pages":UNANSWERABLE_PAGES,"run_modality_robustness":RUN_MODALITY_ROBUSTNESS,
+            "robustness_max_records":ROBUSTNESS_MAX_RECORDS}
+
+
+def run_identity(name):
+    controls=control_values()
+    return {"stage_code_sha256":hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            "test_qa_digest":load_state("dataset.json")["test_qa_digest"],
+            "model_revisions":{"layoutlm":LAYOUTLM_REVISION,"pix2struct":PIX_REVISION},
+            "controls":{k:controls[k] for k in RUN_STATE_CONTROLS[name]}}
+
+
+def check_run_identity():
+    """Refuse to export results that came from a different stage file, test set, model revision or setting."""
+    stale=[name for name in RUN_STATE_CONTROLS if load_state(name).get("run_identity")!=run_identity(name)]
+    if stale:
+        cells=", ".join(sorted({RUN_STATE_CELLS[n] for n in stale},key=lambda s:int(s.split()[1])))
+        raise RuntimeError(f"Saved results {stale} were produced by a different run or setting than the current "
+                           f"controls (section 3). Run the cells of {cells} again (or choose Run all), then this "
+                           "export cell, so every exported file describes the same configuration.")
 
 
 def load_torch():
@@ -965,7 +1015,7 @@ def draw_qa_panel(example,test_pages,layout_by_id,pix_by_id):
     canvas=Image.new("RGB",(image.width,image.height+218),"white"); canvas.paste(image,(0,0)); d=ImageDraw.Draw(canvas); y=image.height+6
     lines=[f"[{example['agreement_category']}] Q: {example['question']}",f"Gold: {example['gold_answer']}",
            f"LayoutLM: {example['layoutlm_answer']}  ANLS={example['layoutlm_anls']:.3f}  span score={l['span_score']:.3f} (uncalibrated)",
-           f"Pix2Struct: {example['pix2struct_answer']}  ANLS={example['pix2struct_anls']:.3f}  truncated={p['truncated']}",
+           f"Pix2Struct: {example['pix2struct_answer']}  ANLS={example['pix2struct_anls']:.3f}  budget reached={p['truncated']}",
            "Black box = LayoutLM's answer words. Pix2Struct gives no location."]
     for line in lines: d.text((8,y),line,fill="black"); y+=38
     return canvas
@@ -1525,7 +1575,7 @@ def stage_windows(args):
     print({"layoutlm_one_window":w["one_window"],"layoutlm_multi_window":w["multi_window"],
            "layoutlm_mean_windows":w["mean"],"layoutlm_max_windows":w["max"]})
     print({"pix2struct_mean_new_tokens":g["mean_new_tokens"],"pix2struct_max_new_tokens_observed":g["max_new_tokens"],
-           "pix2struct_truncation_rate":g["truncation_rate"]})
+           "pix2struct_budget_reached_rate":g["truncation_rate"]})
 
 
 @stage("resources")
@@ -1550,6 +1600,7 @@ def stage_panels(args):
 
 @stage("export")
 def stage_export(args):
+    check_run_identity()
     export_all(Path(OUTPUT_DIR))
 
 
@@ -1584,7 +1635,7 @@ def stage_summary(args):
     print("  OCR required: no")
     print("  answer localization: no")
     print(f"  mean latency: {np.mean(res['pix_times']):.4f} s")
-    print(f"  truncation rate: {np.mean([r['truncated'] for r in res['pix_rows']]):.4f}")
+    print(f"  budget-reached rate: {np.mean([r['truncated'] for r in res['pix_rows']]):.4f}")
     print(f"Outputs: {out_dir}/")
 
 
