@@ -328,7 +328,7 @@ def test_exactly_two_kernel_cells_and_no_restart_text():
     markdown = _markdown()
     assert "Restart the runtime" not in markdown and "its restart" not in markdown
     meta = json.loads(NOTEBOOK.read_text(encoding="utf-8"))["metadata"]["dimer"]
-    assert meta["notebook_spec"] == "2.2" and meta["generated_from"]["generator"] == "build_notebook.py/2.1"
+    assert meta["notebook_spec"] == "2.5" and meta["notebook_kind"] == "TUTORIAL" and meta["generated_from"]["generator"] == "build_notebook.py/2.1"
     status = (ROOT / "STATUS.md").read_text(encoding="utf-8")
     assert "Current status: **Candidate**" in status and "manual restart" in status
     verification = (ROOT / "docs" / "release-verification.md").read_text(encoding="utf-8")
