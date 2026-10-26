@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 GENERATOR_VERSION = "build_notebook.py/2.1"
-NOTEBOOK_SPEC = "2.2"
+NOTEBOOK_SPEC = "2.5"
 
 # /2.1: the `isolated_runtime` environment is the fleet's version 2.2 reference mechanism (ast-audio-classification-pipeline
 # and bioclip2-biodiversity-pipeline): a pinned uv wheel verified by size and SHA-256, a managed CPython of a fixed
@@ -638,12 +638,26 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
         if n_mod == 1
         else f"the repository's package ({n_mod} modules under `{ctx['pkg_rel']}/`, at revision `{ctx['module_revision'][:12]}`) verbatim in Section 2"
     )
+    # NOTEBOOK_SPEC 2.5 DOC17: the use notice after the title, before the first code cell.
+    use_notice = (
+        "> **⚠️ Notice.** For research, training and evaluation only. Not validated for production,\n"
+        "> clinical, diagnostic or safety-critical use. Running this notebook downloads third-party\n"
+        "> model weights and datasets under their own licenses (see the model card) and uses compute\n"
+        "> on your own Colab or Kaggle account. "
+        + ("Data you bring stays in your runtime, and you are\n> responsible for having the right to use it. "
+           if template.get("byod") else "")
+        + "Results here are tutorial evidence, not\n"
+        "> benchmarks. Everything is provided \"as is\", without warranty of any kind. To the maximum\n"
+        "> extent permitted by law, the maintainers and the DIMER platform accept no liability for\n"
+        "> its use."
+    )
     header = (
         f"# {template['title']}\n\n{badges}\n\n"
         f"**Profile:** `{template['profile']}`  \n"
         f"**Mode:** `{mode}`  \n"
         f"**Notebook specification:** DIMER Notebook Specification {NOTEBOOK_SPEC} — **standalone** (§4)  \n"
         f"**Capability:** {template['capability']}\n\n"
+        f"{use_notice}\n\n"
         f"**This notebook is standalone.** It carries {carried}, the pinned model identity and the per-file SHA-256 manifest in Section 3, "
         f"and the exact runtime pins in Section 1, so it keeps working after export even if the repository changes or disappears. Its only "
         f"external dependencies are the pinned Python distributions and {ctx['host']['name']} at the immutable {ctx['host']['revision_label']} `{ctx['MODEL_REVISION']}` "
@@ -682,7 +696,8 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
                 + "Hosted runtimes such as Colab import some packages, NumPy among them, before the first cell runs, and "
                 "Python cannot swap a module that is already loaded. Installing the pins into the notebook's own Python "
                 "would therefore leave mixed versions or require a manual restart. Instead, the next cell builds a separate "
-                f"environment (`dimer_isolated_env/`) and leaves the kernel's packages untouched: it downloads the pinned `uv` "
+                f"environment (`dimer_isolated_env/`; set the `DIMER_ISOLATED_ENV` environment variable to build it "
+                "elsewhere) and leaves the kernel's packages untouched: it downloads the pinned `uv` "
                 f"{template['uv']['version']} wheel and refuses it unless its size and SHA-256 match, has `uv` install the managed "
                 f"CPython **{template['managed_python']}** (whatever Python the kernel itself runs), and installs the "
                 f"{len(lock_packages(ctx['lock_text']))} packages of the carried hash-locked requirements "
@@ -840,6 +855,7 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
                 "notebook_profile": template["profile"],
                 "notebook_mode": mode,
                 "notebook_spec": NOTEBOOK_SPEC,
+                "notebook_kind": "TUTORIAL",
                 "standalone": True,
                 "generated_from": {
                     "repository": template["repo_name"],
