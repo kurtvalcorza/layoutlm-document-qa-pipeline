@@ -183,12 +183,14 @@ def test_byod_path_runs_section4_without_colab(monkeypatch, tmp_path, capsys):
 
 def test_cancelled_upload_no_colab_and_missing_path_are_actionable(monkeypatch, tmp_path):
     _fake_colab(monkeypatch, [{}])
-    with pytest.raises(ValueError, match=r"Upload exactly one .json or .jsonl file \(received 0\).*BYOD_PATH"):
+    # DAT20: each is a refusal (a ValueError carrying dimer_refusal) that names the file and the fix.
+    with pytest.raises(ValueError, match=r"^\(no file\): upload exactly one .json or .jsonl file \(received 0.*BYOD_PATH") as caught:
         _section4(monkeypatch, tmp_path)
+    assert caught.value.dimer_refusal
     monkeypatch.setitem(sys.modules, "google.colab", None)
-    with pytest.raises(RuntimeError, match="needs Google Colab.*BYOD_PATH"):
+    with pytest.raises(ValueError, match=r"^\(no file\): the upload dialog needs Google Colab.*BYOD_PATH"):
         _section4(monkeypatch, tmp_path)
-    with pytest.raises(FileNotFoundError, match="is not a file in this runtime"):
+    with pytest.raises(ValueError, match="^missing.jsonl: .*is not a file in this runtime"):
         _section4(monkeypatch, tmp_path, byod_path=str(tmp_path / "missing.jsonl"))
 
 
