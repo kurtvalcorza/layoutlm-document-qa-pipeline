@@ -1,0 +1,72 @@
+{
+  "repo": "layoutlm-document-qa-pipeline",
+  "sha": "8bf775cc9f5ef316159b750c22dd403f37fe7e1c",
+  "notebook": "tutorials/layoutlm_document_qa_colab.ipynb",
+  "blob": "576999db142d797eb9a67b71fe98ca69ea01679d",
+  "gpu": "T4",
+  "session": "suite-layoutlm-8bf775c-7b8f",
+  "started_utc": "2026-10-29T14:04:30+00:00",
+  "runner": "Colab CLI `colab exec -f` on a fresh session (not a browser Run all)",
+  "overrides": [
+    {
+      "name": "USE_BYOD",
+      "from": "False",
+      "to": "True"
+    },
+    {
+      "name": "BYOD_PATH",
+      "from": "''",
+      "to": "'/etc/hostname'"
+    }
+  ],
+  "run_copy_blob": "108b5dbe164a008d91c29a5c01d7c6cc83209533",
+  "run_copy_sha256": "5baf1a25f403bba18d089d9cfa6a8abde6d5967db7e77dd1e0a536761386242d",
+  "run_copy_note": "refusal run: the run copy is the committed notebook with the listed assignment overrides, cut immediately after the refusal cell and re-serialised (nbformat layout); input_unchanged compares against that copy",
+  "truncated_after_cell": "layoutlm_document_qa-17",
+  "refusal_cell_ref": "layoutlm_document_qa-17",
+  "refusal_cell_index": 8,
+  "cells_dropped": 13,
+  "code_cells_dropped": 6,
+  "original_sha256": "3ac2b02abe7d10a665fb457f80cee36d96fbd4a82d5033bea35a8cdf70290da0",
+  "status": "[suite-layoutlm-8bf775c-7b8f] gpu-t4-s-usw1b0-3rwq78qi2c1p6 | Hardware: T4 | Shape: Standard | Variant: GPU | Status: IDLE",
+  "exec_exit_code": 0,
+  "stopped": true,
+  "stop_verified": true,
+  "wall_s": 122.1,
+  "input_unchanged": true,
+  "executed_file": "layoutlm_document_qa_colab_8bf775c_colab-cli-t4_output.ipynb",
+  "log_cells": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "log_total": 8,
+  "code_cells": 8,
+  "executed_cells": 5,
+  "errors": [
+    {
+      "cell": "layoutlm_document_qa-17",
+      "ename": "IsolatedCellRefusal",
+      "evalue": "hostname: ValueError: BYOD datasets must be .json or .jsonl; fix the file, then run this cell and every cell after it again (the earlier results of this session and their outputs/ files were removed)."
+    }
+  ],
+  "execution_counts": [],
+  "sequential": null,
+  "executed_sha256": "3dc9f57a02f741759156ef3772d1b04a730636ea3719b0dab1b885cb96639724",
+  "log_sequential_complete": true,
+  "mode": "expect_refusal",
+  "refusal_line": "Refused: hostname: ValueError: BYOD datasets must be .json or .jsonl; fix the file, then run this cell and every cell after it again (the earlier results of this session and their outputs/ files were removed).",
+  "halting_cell_index": 8,
+  "halting_cell_id": "layoutlm_document_qa-17",
+  "error_cells": [
+    8
+  ],
+  "refusal_fail_reasons": [],
+  "refusal_ok": true,
+  "verdict": "PASS"
+}
