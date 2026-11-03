@@ -2,6 +2,8 @@
 
 Each state is reported separately. A green CI run or a local CPU chain is not hosted qualification.
 
+**Current blob (2026-11-07).** The notebook's current blob is `53f3183e` (`7ba05c0`, after the lock upgrades of 2026-10-31, `073b791`, and 2026-11-02). It has no hosted run yet, so that gate is open; every hosted run below, the last of blob `3ba1234a` on 2026-10-02, is history (REL14).
+
 | State | Status | Evidence |
 | --- | --- | --- |
 | specified | done | [`receipt-capstone-spec.md`](receipt-capstone-spec.md) v1.0, preserved byte-for-byte |
